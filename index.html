@@ -1,0 +1,2652 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>الماسح — Scan</title>
+<meta name="description" content="حوّل صور المستندات إلى ملفات نظيفة وواضحة. كشف تلقائي للحواف، تصحيح المنظور، إزالة الظلال، واستخراج النص، وتصدير PDF.">
+<meta name="theme-color" content="#0E1419">
+<meta name="color-scheme" content="dark">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="الماسح">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="الماسح">
+
+<!-- Open Graph (Facebook, WhatsApp, Telegram, LinkedIn) -->
+<!-- ⚠️ NOTE: replace https://scanbay.example.com with your real deployed URL so
+     link previews load the absolute image path. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="الماسح">
+<meta property="og:title" content="الماسح — حوّل أي ورقة إلى مستند نظيف">
+<meta property="og:description" content="كشف تلقائي للحواف، تصحيح المنظور، إزالة الظلال، واستخراج النص، وتصدير PDF — مباشرة من متصفحك.">
+<meta property="og:image" content="https://scanbay.example.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="الماسح — تطبيق تصوير المستندات">
+<meta property="og:url" content="https://scanbay.example.com/">
+<meta property="og:locale" content="ar_AR">
+
+<!-- Twitter / X Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="الماسح — حوّل أي ورقة إلى مستند نظيف">
+<meta name="twitter:description" content="كشف تلقائي للحواف، تصحيح المنظور، إزالة الظلال، واستخراج النص، وتصدير PDF.">
+<meta name="twitter:image" content="https://scanbay.example.com/og-image.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Reem+Kufi:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================
+   الماسح — Scan
+   Design tokens
+   ============================================ */
+:root{
+  --bg:#0E1419;
+  --bg-2:#141B22;
+  --surface:#1A222B;
+  --surface-2:#222C36;
+  --border:#2A3138;
+  --border-light:#384450;
+  --scan:#00E5A0;
+  --scan-dim:#00B57E;
+  --scan-glow:rgba(0,229,160,.18);
+  --amber:#FFB627;
+  --amber-dim:#C98A12;
+  --paper:#F7F5F0;
+  --paper-dim:#D9D6CE;
+  --text:#E8EDF1;
+  --text-2:#9AA7B2;
+  --text-3:#5F6E7A;
+  --danger:#FF5C6C;
+  --r:14px;
+  --r-sm:10px;
+  --r-lg:20px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --shadow:0 8px 30px rgba(0,0,0,.45);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.6);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:'Tajawal',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  position:fixed;inset:0;
+  overscroll-behavior:none;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+::selection{background:var(--scan);color:#04130D}
+
+/* scrollbars */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ============================================
+   App shell
+   ============================================ */
+#app{display:flex;flex-direction:column;height:100%;position:relative}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;
+  padding-top:calc(14px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,var(--bg-2),var(--bg));
+  z-index:20;flex-shrink:0;
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand-mark{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(145deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border-light);
+  position:relative;overflow:hidden;flex-shrink:0;
+  display:grid;place-items:center;
+}
+.brand-mark::after{
+  content:"";position:absolute;left:0;right:0;height:2px;
+  background:var(--scan);box-shadow:0 0 8px var(--scan);
+  top:8px;opacity:.9;
+  animation:markScan 3s var(--ease) infinite;
+}
+@keyframes markScan{
+  0%,100%{top:7px;opacity:0}
+  10%{opacity:1}
+  50%{top:25px;opacity:1}
+  60%,90%{opacity:0}
+}
+.brand-mark svg{width:18px;height:18px;position:relative;z-index:1}
+.brand-name{font-family:'Reem Kufi';font-weight:700;font-size:20px;letter-spacing:.5px;line-height:1}
+.brand-sub{font-size:11px;color:var(--text-3);font-weight:500;margin-top:2px}
+
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.install-btn{background:var(--scan-glow)!important;border-color:var(--scan-dim)!important;color:var(--scan)!important}
+.install-btn:active{background:var(--scan)!important;color:#04130D!important}
+.lang-btn{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px}
+.lang-btn span{font-size:14px;line-height:1}
+.icon-btn{
+  width:40px;height:40px;border-radius:11px;
+  display:grid;place-items:center;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text-2);transition:all .18s var(--ease);
+}
+.icon-btn:hover,.icon-btn:active{background:var(--surface-2);color:var(--text);border-color:var(--border-light)}
+.icon-btn svg{width:19px;height:19px}
+.icon-btn.has-count{position:relative}
+.icon-btn .count{
+  position:absolute;top:-5px;left:-5px;min-width:19px;height:19px;
+  background:var(--scan);color:#04130D;border-radius:10px;
+  font-size:11px;font-weight:800;display:grid;place-items:center;
+  padding:0 5px;font-family:'IBM Plex Mono';
+}
+
+/* ============================================
+   Main stage
+   ============================================ */
+.stage{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+
+/* --- View: Home / capture --- */
+.view{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+.view.active{opacity:1;pointer-events:auto;z-index:2}
+
+/* Home */
+.home{justify-content:center;align-items:center;padding:24px;text-align:center;overflow-y:auto}
+.home-inner{max-width:440px;width:100%;display:flex;flex-direction:column;align-items:center}
+.home-hero{position:relative;margin-bottom:30px}
+.scan-illustration{
+  width:160px;height:200px;border-radius:14px;position:relative;
+  background:var(--paper);
+  box-shadow:0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.05);
+  overflow:hidden;
+  transform:rotate(-3deg);
+}
+.scan-illustration .lines{position:absolute;inset:20px 18px;display:flex;flex-direction:column;gap:9px}
+.scan-illustration .lines span{height:7px;border-radius:4px;background:#D9D6CE}
+.scan-illustration .lines span:nth-child(1){width:60%}
+.scan-illustration .lines span:nth-child(2){width:100%}
+.scan-illustration .lines span:nth-child(3){width:88%}
+.scan-illustration .lines span:nth-child(4){width:94%}
+.scan-illustration .lines span:nth-child(5){width:70%}
+.scan-illustration .lines span:nth-child(6){width:100%}
+.scan-illustration .lines span:nth-child(7){width:82%}
+.scan-bar{
+  position:absolute;left:0;right:0;height:3px;top:0;
+  background:var(--scan);box-shadow:0 0 14px 2px var(--scan);
+  animation:heroScan 2.6s var(--ease) infinite;
+}
+.scan-bar::after{
+  content:"";position:absolute;inset:0 0 -40px 0;height:40px;top:3px;
+  background:linear-gradient(180deg,var(--scan-glow),transparent);
+}
+@keyframes heroScan{
+  0%{top:-4px}
+  50%{top:197px}
+  100%{top:-4px}
+}
+.home h1{font-family:'Reem Kufi';font-size:31px;font-weight:700;line-height:1.25;margin-bottom:12px}
+.home h1 em{font-style:normal;color:var(--scan)}
+.home p.lead{color:var(--text-2);font-size:15.5px;line-height:1.7;margin-bottom:30px;max-width:380px}
+
+.cta-row{display:flex;flex-direction:column;gap:12px;width:100%;max-width:340px}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:16px 22px;border-radius:var(--r);font-weight:700;font-size:16px;
+  transition:all .18s var(--ease);position:relative;overflow:hidden;
+}
+.btn svg{width:21px;height:21px;flex-shrink:0}
+.btn-primary{background:var(--scan);color:#04130D;box-shadow:0 6px 24px var(--scan-glow)}
+.btn-primary:hover,.btn-primary:active{background:#1aedae;transform:translateY(-1px);box-shadow:0 10px 30px var(--scan-glow)}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border-light)}
+.btn-secondary:hover,.btn-secondary:active{background:var(--surface-2);border-color:#475360}
+
+.home-foot{margin-top:30px;display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.chip{
+  font-size:12px;color:var(--text-3);background:var(--surface);
+  border:1px solid var(--border);border-radius:20px;padding:6px 12px;
+  display:flex;align-items:center;gap:6px;font-weight:500;
+}
+.chip svg{width:13px;height:13px;color:var(--scan-dim)}
+
+/* ============================================
+   Camera view
+   ============================================ */
+.camera-view{background:#000}
+#cameraFeed{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+}
+.cam-overlay{position:absolute;inset:0;pointer-events:none;z-index:3}
+.cam-frame-guide{
+  position:absolute;inset:14% 8%;
+  border:2px dashed rgba(255,255,255,.4);border-radius:12px;
+}
+.cam-frame-guide .corner{position:absolute;width:26px;height:26px;border:3px solid var(--scan)}
+.cam-frame-guide .corner.tl{top:-2px;right:-2px;border-bottom:none;border-left:none;border-radius:0 12px 0 0}
+.cam-frame-guide .corner.tr{top:-2px;left:-2px;border-bottom:none;border-right:none;border-radius:12px 0 0 0}
+.cam-frame-guide .corner.bl{bottom:-2px;right:-2px;border-top:none;border-left:none;border-radius:0 0 12px 0}
+.cam-frame-guide .corner.br{bottom:-2px;left:-2px;border-top:none;border-right:none;border-radius:0 0 0 12px}
+
+.cam-live-poly{position:absolute;inset:0;width:100%;height:100%;z-index:2}
+
+.cam-hint{
+  position:absolute;top:calc(20px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  background:rgba(14,20,25,.85);backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:30px;
+  padding:9px 18px;font-size:13.5px;font-weight:500;color:var(--text);
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+  z-index:4;
+}
+.cam-hint .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3);flex-shrink:0;transition:background .3s}
+.cam-hint.locked .dot{background:var(--scan);box-shadow:0 0 8px var(--scan)}
+
+.cam-controls{
+  position:absolute;bottom:0;left:0;right:0;z-index:5;
+  padding:24px 24px calc(28px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);
+}
+.cam-ctrl-side{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(26,34,43,.8);backdrop-filter:blur(8px);border:1px solid var(--border-light);color:var(--text)}
+.cam-ctrl-side svg{width:23px;height:23px}
+.shutter{
+  width:74px;height:74px;border-radius:50%;background:#fff;
+  border:5px solid rgba(255,255,255,.35);
+  display:grid;place-items:center;transition:transform .12s var(--ease);
+  box-shadow:0 0 0 2px rgba(0,0,0,.2);
+}
+.shutter:active{transform:scale(.92)}
+.shutter::after{content:"";width:58px;height:58px;border-radius:50%;background:#fff;border:2px solid #000}
+
+/* ============================================
+   Editor view (crop / adjust corners)
+   ============================================ */
+.editor-view{background:var(--bg-2)}
+.editor-canvas-wrap{
+  flex:1;position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;touch-action:none;
+}
+#editorCanvas{max-width:100%;max-height:100%;border-radius:8px;box-shadow:var(--shadow-lg);display:block}
+#cornerSvg{position:absolute;z-index:3;pointer-events:auto;overflow:visible;touch-action:none}
+.corner-handle{cursor:grab}
+.magnifier{
+  position:absolute;width:120px;height:120px;border-radius:50%;
+  border:3px solid var(--scan);box-shadow:0 8px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(0,0,0,.3);
+  overflow:hidden;pointer-events:none;z-index:10;display:none;
+  background:#000;
+}
+.magnifier canvas{position:absolute;top:0;left:0}
+.magnifier .cross{position:absolute;inset:0;z-index:2}
+.magnifier .cross::before,.magnifier .cross::after{
+  content:"";position:absolute;background:var(--scan);opacity:.8;
+}
+.magnifier .cross::before{left:50%;top:0;bottom:0;width:1px;transform:translateX(-.5px)}
+.magnifier .cross::after{top:50%;left:0;right:0;height:1px;transform:translateY(-.5px)}
+
+.editor-toolbar{
+  flex-shrink:0;padding:16px 18px calc(18px + env(safe-area-inset-bottom));
+  background:var(--surface);border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:14px;
+}
+.editor-tools-row{display:flex;gap:10px;justify-content:center}
+.tool-btn{
+  flex:1;max-width:90px;padding:11px 8px;border-radius:var(--r-sm);
+  background:var(--surface-2);border:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--text-2);transition:all .16s var(--ease);font-size:11.5px;font-weight:600;
+}
+.tool-btn svg{width:20px;height:20px}
+.tool-btn:active{background:var(--border);color:var(--text)}
+.tool-btn:disabled{opacity:.35;pointer-events:none}
+.editor-confirm-row{display:flex;gap:12px}
+.editor-confirm-row .btn{flex:1;padding:15px}
+.btn-ghost{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:active{background:var(--border)}
+
+/* ============================================
+   Process view (filters + result)
+   ============================================ */
+.process-view{background:var(--bg-2)}
+.process-canvas-wrap{
+  flex:1;position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;padding:16px;
+}
+#processCanvas{max-width:100%;max-height:100%;border-radius:8px;box-shadow:var(--shadow-lg);display:block;background:var(--paper)}
+.scanline-fx{
+  position:absolute;left:0;right:0;height:3px;top:0;z-index:5;pointer-events:none;
+  background:var(--scan);box-shadow:0 0 16px 3px var(--scan);opacity:0;
+}
+.scanline-fx.run{animation:processScan 1.1s var(--ease)}
+@keyframes processScan{
+  0%{opacity:1;top:0}
+  100%{opacity:1;top:100%}
+}
+
+.process-panel{
+  flex-shrink:0;background:var(--surface);border-top:1px solid var(--border);
+  padding:16px 0 calc(16px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:14px;
+}
+.mode-scroll{display:flex;gap:10px;overflow-x:auto;padding:0 18px 2px;scrollbar-width:none}
+.mode-scroll::-webkit-scrollbar{display:none}
+.mode-card{
+  flex-shrink:0;width:74px;padding:10px 6px;border-radius:var(--r-sm);
+  background:var(--surface-2);border:1.5px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  transition:all .16s var(--ease);
+}
+.mode-card.active{border-color:var(--scan);background:var(--scan-glow)}
+.mode-thumb{width:38px;height:46px;border-radius:5px;overflow:hidden;background:var(--paper);position:relative;flex-shrink:0}
+.mode-thumb canvas{width:100%;height:100%;display:block}
+.mode-card span{font-size:11px;font-weight:600;color:var(--text-2)}
+.mode-card.active span{color:var(--scan)}
+
+.adjust-row{padding:0 20px;display:flex;flex-direction:column;gap:11px}
+.slider-group{display:flex;flex-direction:column;gap:5px}
+.slider-label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--text-2);font-weight:500}
+.slider-label .val{font-family:'IBM Plex Mono';color:var(--text-3)}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;
+  background:var(--border-light);outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--scan);box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer;border:2px solid var(--bg)
+}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--scan);border:2px solid var(--bg);cursor:pointer}
+
+.process-actions{display:flex;gap:10px;padding:2px 18px 0}
+.process-actions .btn{flex:1;padding:14px;font-size:15px}
+.btn-amber{background:var(--amber);color:#241701}
+.btn-amber:active{background:#ffc34d}
+
+/* ============================================
+   Pages / library drawer
+   ============================================ */
+.drawer-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);
+  z-index:90;opacity:0;pointer-events:none;transition:opacity .3s var(--ease)
+}
+.drawer-backdrop.open{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;bottom:0;left:0;width:min(380px,86vw);
+  background:var(--bg-2);border-left:1px solid var(--border);z-index:91;
+  transform:translateX(-100%);transition:transform .34s var(--ease);
+  display:flex;flex-direction:column;box-shadow:var(--shadow-lg);
+}
+.drawer.open{transform:translateX(0)}
+.drawer-head{
+  padding:18px;padding-top:calc(18px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between
+}
+.drawer-head h2{font-family:'Reem Kufi';font-size:19px;font-weight:600;display:flex;align-items:center;gap:9px}
+.drawer-head .pg-count{font-family:'IBM Plex Mono';font-size:13px;color:var(--scan);background:var(--scan-glow);padding:2px 9px;border-radius:8px}
+.pages-list{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.page-item{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:var(--r-sm);
+  background:var(--surface);border:1px solid var(--border);transition:all .16s var(--ease);
+  position:relative;
+}
+.page-item.dragging{opacity:.5;border-color:var(--scan)}
+.page-item.drag-over{border-color:var(--scan);box-shadow:0 0 0 2px var(--scan-glow)}
+.page-grip{color:var(--text-3);cursor:grab;touch-action:none;display:grid;place-items:center;padding:4px}
+.page-grip svg{width:18px;height:18px}
+.page-thumb{width:46px;height:60px;border-radius:6px;overflow:hidden;background:var(--paper);flex-shrink:0;border:1px solid var(--border)}
+.page-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.page-info{flex:1;min-width:0}
+.page-info .pname{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-info .pmeta{font-size:11.5px;color:var(--text-3);font-family:'IBM Plex Mono';margin-top:2px}
+.page-del{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--text-3);background:var(--surface-2)}
+.page-del:active{background:var(--danger);color:#fff}
+.page-del svg{width:17px;height:17px}
+.pages-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-3);gap:14px;text-align:center;padding:20px}
+.pages-empty svg{width:46px;height:46px;opacity:.5}
+.pages-empty p{font-size:14px;line-height:1.6}
+
+.drawer-foot{padding:14px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px}
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-sm{padding:13px;font-size:14px;border-radius:var(--r-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-sm svg{width:18px;height:18px}
+
+/* ============================================
+   OCR sheet
+   ============================================ */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(3px);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:101;
+  background:var(--bg-2);border-top:1px solid var(--border);
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  transform:translateY(100%);transition:transform .36s var(--ease);
+  max-height:82vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);
+}
+.sheet.open{transform:translateY(0)}
+.sheet-handle{width:42px;height:5px;border-radius:3px;background:var(--border-light);margin:12px auto 4px}
+.sheet-head{padding:8px 20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sheet-head h2{font-family:'Reem Kufi';font-size:19px;font-weight:600;display:flex;align-items:center;gap:9px}
+.sheet-body{flex:1;overflow-y:auto;padding:18px 20px}
+.ocr-status{display:flex;flex-direction:column;align-items:center;gap:16px;padding:30px 10px;text-align:center}
+.ocr-spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--scan);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ocr-status p{color:var(--text-2);font-size:14px}
+.ocr-progress{width:100%;max-width:240px;height:6px;background:var(--border);border-radius:6px;overflow:hidden}
+.ocr-progress span{display:block;height:100%;background:var(--scan);width:0;transition:width .3s;border-radius:6px}
+.ocr-text{
+  width:100%;min-height:200px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:16px;color:var(--text);font-size:15px;line-height:1.9;
+  font-family:'Tajawal';resize:vertical;outline:none;
+}
+.ocr-text:focus{border-color:var(--scan)}
+.sheet-foot{padding:14px 20px calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px}
+.sheet-foot .btn{flex:1;padding:14px}
+
+/* OCR language toggle */
+.ocr-lang-row{display:flex;gap:8px;margin-bottom:16px;justify-content:center;flex-wrap:wrap}
+.ocr-field-label{font-size:12px;color:var(--text-3);font-weight:600;margin-bottom:8px;text-align:center}
+.lang-pill{padding:8px 16px;border-radius:20px;background:var(--surface);border:1.5px solid var(--border);font-size:13px;font-weight:600;color:var(--text-2);transition:all .16s}
+.lang-pill.active{border-color:var(--scan);color:var(--scan);background:var(--scan-glow)}
+
+/* ============================================
+   Loading / boot overlay
+   ============================================ */
+.boot{
+  position:fixed;inset:0;z-index:200;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  transition:opacity .5s var(--ease)
+}
+.boot.hide{opacity:0;pointer-events:none}
+.boot-logo{
+  width:88px;height:108px;border-radius:14px;background:var(--paper);position:relative;overflow:hidden;
+  box-shadow:0 20px 50px rgba(0,0,0,.5)
+}
+.boot-logo .l{position:absolute;inset:16px 14px;display:flex;flex-direction:column;gap:7px}
+.boot-logo .l span{height:5px;border-radius:3px;background:#D9D6CE}
+.boot-logo .l span:nth-child(2){width:80%}
+.boot-logo .l span:nth-child(4){width:65%}
+.boot-logo .bar{position:absolute;left:0;right:0;height:3px;background:var(--scan);box-shadow:0 0 14px var(--scan);animation:heroScan 1.6s var(--ease) infinite}
+.boot-title{font-family:'Reem Kufi';font-size:24px;font-weight:700;letter-spacing:1px}
+.boot-status{font-size:13px;color:var(--text-3);font-family:'IBM Plex Mono';height:18px}
+.boot-progress{width:180px;height:4px;background:var(--border);border-radius:4px;overflow:hidden}
+.boot-progress span{display:block;height:100%;width:0;background:var(--scan);transition:width .4s var(--ease);border-radius:4px}
+
+/* ============================================
+   Toast
+   ============================================ */
+.toast-wrap{position:fixed;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;align-items:center;width:max-content;max-width:90vw;pointer-events:none}
+.toast{
+  background:var(--surface-2);border:1px solid var(--border-light);border-radius:12px;
+  padding:12px 18px;font-size:14px;font-weight:500;color:var(--text);
+  box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;
+  animation:toastIn .3s var(--ease);max-width:100%;
+}
+.toast.ok{border-color:var(--scan-dim)}
+.toast.ok svg{color:var(--scan)}
+.toast.err{border-color:var(--danger)}
+.toast.err svg{color:var(--danger)}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============================================
+   Settings sheet
+   ============================================ */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row .sr-label{font-size:14.5px;font-weight:500}
+.settings-row .sr-desc{font-size:12px;color:var(--text-3);margin-top:3px}
+.toggle{width:48px;height:28px;border-radius:16px;background:var(--border-light);position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--scan)}
+.toggle::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s var(--ease)}
+.toggle.on::after{transform:translateX(-20px)}
+.seg{display:flex;background:var(--surface);border-radius:9px;padding:3px;gap:3px}
+.seg button{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;color:var(--text-2)}
+.seg button.active{background:var(--scan);color:#04130D}
+
+.hidden{display:none!important}
+
+/* ============================================
+   LTR (English) overrides — the base layout is authored RTL, so when the
+   document switches to dir=ltr we mirror the handful of direction-specific
+   pieces (toggle knob, side drawer, text alignment).
+   ============================================ */
+[dir="ltr"] .toggle::after{right:auto;left:3px}
+[dir="ltr"] .toggle.on::after{transform:translateX(20px)}
+[dir="ltr"] .drawer{left:auto;right:0;border-left:none;border-right:1px solid var(--border);transform:translateX(100%)}
+[dir="ltr"] .drawer.open{transform:translateX(0)}
+[dir="ltr"] .drawer-head h2,
+[dir="ltr"] .sheet-head h2{flex-direction:row}
+[dir="ltr"] .sr-label,[dir="ltr"] .sr-desc,
+[dir="ltr"] .pname,[dir="ltr"] .pmeta,
+[dir="ltr"] .slider-label{text-align:left}
+[dir="ltr"] .ocr-text{text-align:left}
+[dir="ltr"] .brand-name,[dir="ltr"] .brand-sub{text-align:left}
+[dir="ltr"] .home{text-align:center}
+[dir="ltr"] .brand-name,
+[dir="ltr"] .home h1,
+[dir="ltr"] .drawer-head h2,
+[dir="ltr"] .sheet-head h2{font-family:'IBM Plex Mono','Reem Kufi',monospace;letter-spacing:0}
+
+/* responsive: larger screens center the stage */
+@media(min-width:900px){
+  .stage{max-width:560px;margin:0 auto;width:100%}
+  .topbar{max-width:560px;margin:0 auto;width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- Boot overlay -->
+<div class="boot" id="boot">
+  <div class="boot-logo">
+    <div class="l"><span></span><span></span><span></span><span></span></div>
+    <div class="bar"></div>
+  </div>
+  <div class="boot-title">الماسح</div>
+  <div class="boot-progress"><span id="bootBar"></span></div>
+  <div class="boot-status" id="bootStatus" data-i18n="loading">جارٍ التحميل…</div>
+</div>
+
+<div id="app">
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+      </div>
+      <div>
+        <div class="brand-name" data-i18n="brand_name">الماسح</div>
+        <div class="brand-sub" data-i18n="brand_sub">Scan</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn lang-btn" id="langBtn" aria-label="Language">
+        <span id="langLabel">EN</span>
+      </button>
+      <button class="icon-btn install-btn hidden" id="installBtn" aria-label="تثبيت التطبيق">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" aria-label="الإعدادات">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="icon-btn has-count" id="pagesBtn" aria-label="المستندات">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="count hidden" id="pageCount">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <!-- HOME -->
+    <section class="view home active" id="homeView">
+      <div class="home-inner">
+        <div class="home-hero">
+          <div class="scan-illustration">
+            <div class="lines"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="scan-bar"></div>
+          </div>
+        </div>
+        <h1><span data-i18n="app_tagline_1">حوّل أي ورقة إلى</span><br><em data-i18n="app_tagline_2">مستند نظيف</em></h1>
+        <p class="lead" data-i18n="app_lead">صوّر المستند، وسنكتشف حوافه، نصحّح المنظور، نزيل الظلال، ونخرجه واضحاً وقوياً — جاهزاً للحفظ أو المشاركة.</p>
+        <div class="cta-row">
+          <button class="btn btn-primary" id="openCameraBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <span data-i18n="btn_camera">التقاط بالكاميرا</span>
+          </button>
+          <button class="btn btn-secondary" id="uploadBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span data-i18n="btn_upload">رفع صورة من الجهاز</span>
+          </button>
+        </div>
+        <div class="home-foot">
+          <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_edges">كشف تلقائي للحواف</span></div>
+          <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_shadow">إزالة الظلال</span></div>
+          <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_ocr">استخراج النص</span></div>
+          <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_pdf">تصدير PDF</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAMERA -->
+    <section class="view camera-view" id="cameraView">
+      <video id="cameraFeed" playsinline autoplay muted></video>
+      <canvas class="cam-live-poly" id="liveDetectCanvas"></canvas>
+      <div class="cam-overlay">
+        <div class="cam-frame-guide">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+        </div>
+      </div>
+      <div class="cam-hint" id="camHint"><span class="dot"></span><span data-i18n="cam_hint">وجّه الكاميرا نحو المستند</span></div>
+      <div class="cam-controls">
+        <button class="cam-ctrl-side" id="camCloseBtn" aria-label="إغلاق">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button class="shutter" id="shutterBtn" aria-label="التقاط"></button>
+        <button class="cam-ctrl-side" id="camFlipBtn" aria-label="تبديل الكاميرا">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- EDITOR (corner adjust) -->
+    <section class="view editor-view" id="editorView">
+      <div class="editor-canvas-wrap" id="editorWrap">
+        <canvas id="editorCanvas"></canvas>
+        <svg id="cornerSvg"></svg>
+        <div class="magnifier" id="magnifier"><canvas id="magCanvas" width="120" height="120"></canvas><div class="cross"></div></div>
+      </div>
+      <div class="editor-toolbar">
+        <div class="editor-tools-row">
+          <button class="tool-btn" id="undoBtn" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+            <span data-i18n="undo">تراجع</span>
+          </button>
+          <button class="tool-btn" id="autoDetectBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3h-4a2 2 0 0 0-2 2v4M14.5 3h4a2 2 0 0 1 2 2v4M20.5 14.5v4a2 2 0 0 1-2 2h-4M3.5 14.5v4a2 2 0 0 0 2 2h4"/><path d="M7 12l3 3 7-7"/></svg>
+            <span data-i18n="auto_detect">كشف تلقائي</span>
+          </button>
+          <button class="tool-btn" id="resetCornersBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            <span data-i18n="full_image">كامل الصورة</span>
+          </button>
+          <button class="tool-btn" id="rotateEditBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span data-i18n="rotate">تدوير</span>
+          </button>
+        </div>
+        <div class="editor-confirm-row">
+          <button class="btn btn-ghost" id="editorBackBtn" data-i18n="back">رجوع</button>
+          <button class="btn btn-primary" id="editorConfirmBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span data-i18n="next">متابعة</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROCESS (filters) -->
+    <section class="view process-view" id="processView">
+      <div class="process-canvas-wrap">
+        <canvas id="processCanvas"></canvas>
+        <div class="scanline-fx" id="scanlineFx"></div>
+      </div>
+      <div class="process-panel">
+        <div class="mode-scroll" id="modeScroll"></div>
+        <div class="adjust-row">
+          <div class="slider-group">
+            <div class="slider-label"><span data-i18n="brightness">السطوع</span><span class="val" id="brightVal">0</span></div>
+            <input type="range" id="brightSlider" min="-100" max="100" value="0">
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span data-i18n="contrast">التباين</span><span class="val" id="contrastVal">0</span></div>
+            <input type="range" id="contrastSlider" min="-100" max="100" value="0">
+          </div>
+        </div>
+        <div class="process-actions">
+          <button class="btn btn-ghost" id="processBackBtn" data-i18n="back">رجوع</button>
+          <button class="btn btn-amber" id="ocrBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+            <span data-i18n="text">نص</span>
+          </button>
+          <button class="btn btn-primary" id="savePageBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span data-i18n="save">حفظ</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Pages drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="pagesDrawer">
+  <div class="drawer-head">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span data-i18n="docs">المستندات</span>
+      <span class="pg-count" id="drawerCount">0</span>
+    </h2>
+    <button class="icon-btn" id="drawerCloseBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="pages-list" id="pagesList">
+    <div class="pages-empty" id="pagesEmpty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p><span data-i18n="no_pages">لا توجد صفحات بعد.</span><br><span data-i18n="no_pages_2">التقط أو ارفع مستنداً لتبدأ.</span></p>
+    </div>
+  </div>
+  <div class="drawer-foot" id="drawerFoot">
+    <button class="btn btn-secondary btn-sm" id="addMoreBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span data-i18n="add_page">إضافة صفحة</span>
+    </button>
+    <div class="export-grid">
+      <button class="btn btn-primary btn-sm" id="exportPdfBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-i18n="dl_pdf">تنزيل PDF</span>
+      </button>
+      <button class="btn btn-amber btn-sm" id="exportImgBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-i18n="dl_img">تنزيل صور</span>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- OCR sheet -->
+<div class="sheet-backdrop" id="ocrBackdrop"></div>
+<div class="sheet" id="ocrSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="#FFB627" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg><span data-i18n="ocr_title">النص المستخرَج</span></h2>
+    <button class="icon-btn" id="ocrCloseBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="sheet-body">
+    <div class="ocr-field-label" data-i18n="ocr_lang">اللغة</div>
+    <div class="ocr-lang-row" id="ocrLangRow">
+      <button class="lang-pill active" data-lang="ara+eng" data-i18n="lang_ar_en">عربي + إنجليزي</button>
+      <button class="lang-pill" data-lang="ara" data-i18n="lang_ar">عربي</button>
+      <button class="lang-pill" data-lang="eng" data-i18n="lang_en">إنجليزي</button>
+    </div>
+    <div class="ocr-field-label" data-i18n="ocr_layout">تخطيط الصفحة</div>
+    <div class="ocr-lang-row" id="ocrLayoutRow">
+      <button class="lang-pill active" data-psm="3" data-i18n="psm_auto">تلقائي</button>
+      <button class="lang-pill" data-psm="6" data-i18n="psm_single">عمود واحد</button>
+      <button class="lang-pill" data-psm="4" data-i18n="psm_cols">أعمدة</button>
+      <button class="lang-pill" data-psm="7" data-i18n="psm_line">سطر واحد</button>
+    </div>
+    <div class="ocr-status" id="ocrStatus">
+      <div class="ocr-spinner"></div>
+      <p id="ocrStatusText" data-i18n="ocr_prep">جارٍ تحضير محرّك القراءة…</p>
+      <div class="ocr-progress"><span id="ocrProgressBar"></span></div>
+    </div>
+    <textarea class="ocr-text hidden" id="ocrTextArea" placeholder="سيظهر النص هنا…" data-i18n-ph="ocr_placeholder" dir="auto"></textarea>
+  </div>
+  <div class="sheet-foot hidden" id="ocrFoot">
+    <button class="btn btn-ghost" id="ocrCopyBtn" data-i18n="copy_text">نسخ النص</button>
+    <button class="btn btn-primary" id="ocrRerunBtn" data-i18n="rerun">إعادة القراءة</button>
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet-backdrop" id="settingsBackdrop"></div>
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h2><svg viewBox="0 0 24 24" fill="none" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span data-i18n="settings">الإعدادات</span></h2>
+    <button class="icon-btn" id="settingsCloseBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="sheet-body">
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_sound">الأصوات</div><div class="sr-desc" data-i18n="set_sound_d">نغمات خفيفة عند الالتقاط والمعالجة والحفظ</div></div>
+      <div class="toggle on" id="soundToggle"></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_shadow">إزالة الظلال تلقائياً</div><div class="sr-desc" data-i18n="set_shadow_d">يزيل تدرّج الإضاءة وظلال اليد عند المعالجة</div></div>
+      <div class="toggle on" id="shadowToggle"></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_rotate">تصحيح الاتجاه تلقائياً</div><div class="sr-desc" data-i18n="set_rotate_d">يدوّر المستند المقلوب اعتماداً على اتجاه النص</div></div>
+      <div class="toggle on" id="autoRotateToggle"></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_session">حفظ الجلسة</div><div class="sr-desc" data-i18n="set_session_d">يحتفظ بصفحاتك إذا أُغلقت الصفحة بالخطأ</div></div>
+      <div class="toggle on" id="sessionToggle"></div>
+    </div>
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_quality">جودة التصدير</div><div class="sr-desc" data-i18n="set_quality_d">جودة أعلى = حجم ملف أكبر</div></div>
+      <div class="seg" id="qualitySeg">
+        <button data-q="0.7" data-i18n="q_normal">عادية</button>
+        <button data-q="0.85" class="active" data-i18n="q_high">عالية</button>
+        <button data-q="0.95" data-i18n="q_max">قصوى</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div><div class="sr-label" data-i18n="set_paper">حجم صفحة PDF</div><div class="sr-desc" data-i18n="set_paper_d">قياس الورقة في ملف PDF</div></div>
+      <div class="seg" id="paperSeg">
+        <button data-p="a4" class="active">A4</button>
+        <button data-p="letter">Letter</button>
+        <button data-p="fit" data-i18n="p_fit">ملائم</button>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-ghost" id="clearAllBtn" style="color:var(--danger)" data-i18n="clear_all">حذف كل الصفحات</button>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+<input type="file" id="cameraFileInput" accept="image/*" capture="environment" class="hidden">
+
+<!-- ============================================
+     LIBRARIES (loaded dynamically with progress)
+     ============================================ -->
+<script>
+/* This block is the boot loader. It loads OpenCV.js + jsPDF up front,
+   and defers Tesseract.js until OCR is requested. */
+(function(){
+  'use strict';
+
+  const bootBar = document.getElementById('bootBar');
+  const bootStatus = document.getElementById('bootStatus');
+  const boot = document.getElementById('boot');
+
+  window.__LIBS__ = { cv:false, jspdf:false, tesseract:false };
+
+  function setBoot(pct, txt){ bootBar.style.width = pct+'%'; if(txt) bootStatus.textContent = txt; }
+
+  function loadScript(src){
+    return new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src=src; s.async=true;
+      s.onload=()=>res(); s.onerror=()=>rej(new Error('فشل تحميل: '+src));
+      document.head.appendChild(s);
+    });
+  }
+
+  // OpenCV ready handling
+  window.__cvReady = new Promise((resolve)=>{ window.__resolveCv = resolve; });
+
+  async function bootSequence(){
+    try{
+      setBoot(10,'تحميل محرّك المعالجة…');
+      // jsPDF first (small)
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      window.__LIBS__.jspdf = true;
+      setBoot(25,'تحميل خوارزميات الرؤية…');
+
+      // OpenCV - configure onRuntimeInitialized
+      window.Module = { onRuntimeInitialized: ()=>{ window.__LIBS__.cv = true; window.__resolveCv(); } };
+      await loadScript('https://docs.opencv.org/4.9.0/opencv.js');
+      setBoot(60,'تهيئة محرّك الرؤية…');
+
+      await window.__cvReady;
+      setBoot(100,'جاهز');
+      setTimeout(()=>{ boot.classList.add('hide'); if(window.__APP_INIT__) window.__APP_INIT__(); }, 350);
+    }catch(e){
+      bootStatus.textContent = 'تعذّر التحميل. تحقق من الاتصال وأعد المحاولة.';
+      bootStatus.style.color = '#FF5C6C';
+      console.error(e);
+    }
+  }
+
+  // Tesseract lazy loader exposed globally
+  window.__loadTesseract = async function(){
+    if(window.__LIBS__.tesseract) return;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.0/tesseract.min.js');
+    window.__LIBS__.tesseract = true;
+  };
+
+  bootSequence();
+})();
+</script>
+
+<!-- ============================================
+     APPLICATION LOGIC
+     ============================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ---------- State ---------- */
+const State = {
+  pages: [],              // {id, dataUrl, thumb, mode, name, ts}
+  currentImage: null,     // HTMLImageElement of capture being edited
+  corners: null,          // [{x,y}*4] in canvas display coords
+  imgDims: null,          // {w,h} natural
+  editorScale: 1,
+  editorOffset: {x:0,y:0},
+  warpedCanvas: null,     // result of perspective correction
+  activeMode: 'bw',
+  adjust: {brightness:0, contrast:0},
+  facingMode: 'environment',
+  stream: null,
+  editorRotation: 0,
+  settings: {
+    shadowRemoval:true, autoRotate:true, session:true, sound:true,
+    quality:0.85, paper:'a4'
+  },
+  ocrLang:'ara+eng',
+  ocrPSM:'3',
+  dragPageId:null,
+};
+
+/* ---------- Modes ---------- */
+const MODES = [
+  {id:'bw', name:'أبيض وأسود'},
+  {id:'color', name:'ملوّن محسّن'},
+  {id:'gray', name:'رمادي'},
+  {id:'original', name:'أصلي'},
+];
+
+/* ---------- Element refs ---------- */
+const $ = id => document.getElementById(id);
+const views = {
+  home: $('homeView'), camera: $('cameraView'),
+  editor: $('editorView'), process: $('processView')
+};
+
+/* ============================================
+   I18N — bilingual Arabic / English
+   ============================================ */
+const I18N = {
+  ar:{
+    _dir:'rtl', _lang:'ar',
+    brand_name:'الماسح', brand_sub:'Scan',
+    app_tagline_1:'حوّل أي ورقة إلى', app_tagline_2:'مستند نظيف',
+    app_lead:'صوّر المستند، وسنكتشف حوافه، نصحّح المنظور، نزيل الظلال، ونخرجه واضحاً وقوياً — جاهزاً للحفظ أو المشاركة.',
+    btn_camera:'التقاط بالكاميرا', btn_upload:'رفع صورة من الجهاز',
+    chip_edges:'كشف تلقائي للحواف', chip_shadow:'إزالة الظلال', chip_ocr:'استخراج النص', chip_pdf:'تصدير PDF',
+    cam_hint:'وجّه الكاميرا نحو المستند', cam_found:'تم العثور على المستند',
+    back:'رجوع', next:'متابعة', undo:'تراجع', auto_detect:'كشف تلقائي', full_image:'كامل الصورة', rotate:'تدوير',
+    brightness:'السطوع', contrast:'التباين', text:'نص', save:'حفظ',
+    docs:'المستندات', no_pages:'لا توجد صفحات بعد.', no_pages_2:'التقط أو ارفع مستنداً لتبدأ.',
+    add_page:'إضافة صفحة', dl_pdf:'تنزيل PDF', dl_img:'تنزيل صور',
+    ocr_title:'النص المستخرَج', ocr_lang:'اللغة', ocr_layout:'تخطيط الصفحة',
+    lang_ar_en:'عربي + إنجليزي', lang_ar:'عربي', lang_en:'إنجليزي',
+    psm_auto:'تلقائي', psm_single:'عمود واحد', psm_cols:'أعمدة', psm_line:'سطر واحد',
+    ocr_prep:'جارٍ تحضير محرّك القراءة…', copy_text:'نسخ النص', rerun:'إعادة القراءة',
+    settings:'الإعدادات',
+    set_sound:'الأصوات', set_sound_d:'نغمات خفيفة عند الالتقاط والمعالجة والحفظ',
+    set_shadow:'إزالة الظلال تلقائياً', set_shadow_d:'يزيل تدرّج الإضاءة وظلال اليد عند المعالجة',
+    set_rotate:'تصحيح الاتجاه تلقائياً', set_rotate_d:'يدوّر المستند المقلوب اعتماداً على اتجاه النص',
+    set_session:'حفظ الجلسة', set_session_d:'يحتفظ بصفحاتك إذا أُغلقت الصفحة بالخطأ',
+    set_quality:'جودة التصدير', set_quality_d:'جودة أعلى = حجم ملف أكبر',
+    q_normal:'عادية', q_high:'عالية', q_max:'قصوى',
+    set_paper:'حجم صفحة PDF', set_paper_d:'قياس الورقة في ملف PDF', p_fit:'ملائم',
+    clear_all:'حذف كل الصفحات', loading:'جارٍ التحميل…',
+    page:'صفحة', mode_bw:'أبيض وأسود', mode_color:'ملوّن محسّن', mode_gray:'رمادي', mode_orig:'أصلي',
+    // toasts
+    t_cam_notready:'الكاميرا غير جاهزة', t_cam_fail:'تعذّر فتح الكاميرا. جرّب رفع صورة بدلاً من ذلك.',
+    t_detected:'تم الكشف', t_no_detect:'لم نتمكّن من الكشف', t_no_edges:'لم نتمكّن من كشف الحواف — اضبطها يدوياً',
+    t_process_fail:'تعذّرت المعالجة', t_page_added:'تمت إضافة الصفحة', t_no_pages:'لا توجد صفحات',
+    t_pdf_making:'جارٍ إنشاء PDF…', t_pdf_saved:'تم حفظ ملف PDF', t_pdf_notready:'محرّك PDF غير جاهز',
+    t_img_saved:'تم حفظ الصورة', t_imgs_saved:'تم حفظ {n} صور', t_cleared:'تم حذف كل الصفحات',
+    t_copied:'تم نسخ النص', t_restored:'تمت استعادة جلستك السابقة',
+    t_batch:'معالجة {n} صور…', t_batch_done:'تمت إضافة {n} صفحات',
+    ocr_load:'تحميل محرّك القراءة…', ocr_lang_init:'تهيئة اللغة…', ocr_prep_img:'تحضير الصورة…',
+    ocr_reading:'قراءة النص…', ocr_fail:'تعذّرت قراءة النص. حاول مجدداً.', ocr_none:'لم يُعثر على نص واضح في هذا المستند.',
+    ocr_placeholder:'سيظهر النص هنا…',
+  },
+  en:{
+    _dir:'ltr', _lang:'en',
+    brand_name:'Scan', brand_sub:'الماسح',
+    app_tagline_1:'Turn any page into a', app_tagline_2:'clean document',
+    app_lead:'Snap a document and we’ll find its edges, fix the perspective, remove shadows, and output it crisp and sharp — ready to save or share.',
+    btn_camera:'Capture with camera', btn_upload:'Upload an image',
+    chip_edges:'Auto edge detection', chip_shadow:'Shadow removal', chip_ocr:'Text extraction', chip_pdf:'PDF export',
+    cam_hint:'Point the camera at a document', cam_found:'Document found',
+    back:'Back', next:'Continue', undo:'Undo', auto_detect:'Auto detect', full_image:'Full image', rotate:'Rotate',
+    brightness:'Brightness', contrast:'Contrast', text:'Text', save:'Save',
+    docs:'Documents', no_pages:'No pages yet.', no_pages_2:'Capture or upload a document to begin.',
+    add_page:'Add page', dl_pdf:'Download PDF', dl_img:'Download images',
+    ocr_title:'Extracted text', ocr_lang:'Language', ocr_layout:'Page layout',
+    lang_ar_en:'Arabic + English', lang_ar:'Arabic', lang_en:'English',
+    psm_auto:'Automatic', psm_single:'Single column', psm_cols:'Columns', psm_line:'Single line',
+    ocr_prep:'Preparing the OCR engine…', copy_text:'Copy text', rerun:'Read again',
+    settings:'Settings',
+    set_sound:'Sounds', set_sound_d:'Subtle tones on capture, processing and save',
+    set_shadow:'Auto shadow removal', set_shadow_d:'Flattens lighting and hand shadows while processing',
+    set_rotate:'Auto orientation', set_rotate_d:'Rotates an upside-down document based on text direction',
+    set_session:'Keep session', set_session_d:'Keeps your pages if the tab is closed by mistake',
+    set_quality:'Export quality', set_quality_d:'Higher quality = larger file',
+    q_normal:'Normal', q_high:'High', q_max:'Max',
+    set_paper:'PDF page size', set_paper_d:'Paper size in the PDF file', p_fit:'Fit',
+    clear_all:'Delete all pages', loading:'Loading…',
+    page:'Page', mode_bw:'Black & white', mode_color:'Enhanced color', mode_gray:'Grayscale', mode_orig:'Original',
+    t_cam_notready:'Camera not ready', t_cam_fail:'Couldn’t open the camera. Try uploading an image instead.',
+    t_detected:'Detected', t_no_detect:'Couldn’t detect edges', t_no_edges:'Couldn’t detect edges — adjust them manually',
+    t_process_fail:'Processing failed', t_page_added:'Page added', t_no_pages:'No pages',
+    t_pdf_making:'Creating PDF…', t_pdf_saved:'PDF saved', t_pdf_notready:'PDF engine not ready',
+    t_img_saved:'Image saved', t_imgs_saved:'Saved {n} images', t_cleared:'All pages deleted',
+    t_copied:'Text copied', t_restored:'Your previous session was restored',
+    t_batch:'Processing {n} images…', t_batch_done:'Added {n} pages',
+    ocr_load:'Loading OCR engine…', ocr_lang_init:'Initializing language…', ocr_prep_img:'Preparing image…',
+    ocr_reading:'Reading text…', ocr_fail:'Couldn’t read the text. Try again.', ocr_none:'No clear text was found in this document.',
+    ocr_placeholder:'Text will appear here…',
+  }
+};
+let LANG = 'ar';
+function t(key, vars){
+  let s = (I18N[LANG] && I18N[LANG][key]) || (I18N.ar[key]) || key;
+  if(vars) Object.keys(vars).forEach(k=>{ s=s.replace('{'+k+'}', vars[k]); });
+  return s;
+}
+function applyLang(lang){
+  LANG = (lang==='en')?'en':'ar';
+  const dict = I18N[LANG];
+  document.documentElement.lang = dict._lang;
+  document.documentElement.dir = dict._dir;
+  // text content
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k=el.getAttribute('data-i18n');
+    if(dict[k]!==undefined) el.textContent=dict[k];
+  });
+  // placeholders
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{
+    const k=el.getAttribute('data-i18n-ph');
+    if(dict[k]!==undefined) el.setAttribute('placeholder',dict[k]);
+  });
+  // aria labels
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>{
+    const k=el.getAttribute('data-i18n-aria');
+    if(dict[k]!==undefined) el.setAttribute('aria-label',dict[k]);
+  });
+  // mode cards rebuild (names are translated)
+  if(typeof MODES!=='undefined'){
+    MODES[0].name=t('mode_bw'); MODES[1].name=t('mode_color'); MODES[2].name=t('mode_gray'); MODES[3].name=t('mode_orig');
+    if(State.warpedCanvas && document.getElementById('modeScroll').children.length) buildModeCards();
+  }
+  // toggle button label
+  const lb=document.getElementById('langLabel');
+  if(lb) lb.textContent = (LANG==='ar')?'EN':'ع';
+  // re-render pages (page names)
+  if(typeof renderPagesList==='function') renderPagesList();
+  try{ localStorage.setItem('scanbay_lang',LANG); }catch(e){}
+}
+
+
+/* ============================================
+   AUDIO ENGINE — "الماسح / Scan" sound design
+   All sounds are synthesized live with the Web Audio API (no files, keeps the
+   app a single document). The palette is deliberately soft and digital: warm
+   low-mid sine/triangle tones, short gentle clicks, and a rising "scanner sweep"
+   for capture — evoking real document-scanner hardware without being harsh.
+   ============================================ */
+const Audio = {
+  ctx:null,
+  master:null,
+  enabled:true,
+  ready:false,
+
+  init(){
+    if(this.ready) return;
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.5;
+      // a touch of low-pass keeps everything soft, never piercing
+      const lp = this.ctx.createBiquadFilter();
+      lp.type='lowpass'; lp.frequency.value=7000; lp.Q.value=0.3;
+      this.master.connect(lp); lp.connect(this.ctx.destination);
+      this.ready=true;
+    }catch(e){ /* audio unavailable */ }
+  },
+
+  // Resume must happen after a user gesture (browser autoplay policy)
+  resume(){
+    if(this.ctx && this.ctx.state==='suspended') this.ctx.resume();
+  },
+
+  // Core voice: an oscillator with an ADSR-ish gain envelope.
+  tone({freq=440, type='sine', dur=0.15, attack=0.005, decay=0.05, sustain=0.3, release=0.08, gain=0.3, freqEnd=null, delay=0}={}){
+    if(!this.ready || !this.enabled) return;
+    const t0 = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if(freqEnd!==null) osc.frequency.exponentialRampToValueAtTime(Math.max(1,freqEnd), t0+dur);
+    // ADSR
+    const peak=gain, sus=gain*sustain;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0+attack);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001,sus), t0+attack+decay);
+    g.gain.setValueAtTime(Math.max(0.0001,sus), t0+Math.max(attack+decay,dur-release));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0+dur+release);
+    osc.connect(g); g.connect(this.master);
+    osc.start(t0); osc.stop(t0+dur+release+0.02);
+  },
+
+  // Soft filtered-noise burst (used for the scanner sweep texture)
+  noiseSweep({dur=0.5, gain=0.12, fStart=400, fEnd=3000}={}){
+    if(!this.ready || !this.enabled) return;
+    const t0=this.ctx.currentTime;
+    const len=Math.floor(this.ctx.sampleRate*dur);
+    const buf=this.ctx.createBuffer(1,len,this.ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*0.5;
+    const src=this.ctx.createBufferSource(); src.buffer=buf;
+    const bp=this.ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=1.2;
+    bp.frequency.setValueAtTime(fStart,t0);
+    bp.frequency.exponentialRampToValueAtTime(fEnd,t0+dur);
+    const g=this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(gain,t0+dur*0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(t0); src.stop(t0+dur+0.02);
+  },
+
+  /* ---- Named UI sounds ---- */
+
+  // soft digital tick for taps / mode switches
+  tap(){ this.tone({freq:520,type:'triangle',dur:0.04,attack:0.002,decay:0.02,sustain:0.2,release:0.03,gain:0.18}); },
+
+  // gentle two-step when a corner/handle is grabbed
+  pick(){ this.tone({freq:680,type:'sine',dur:0.05,attack:0.002,decay:0.02,sustain:0.2,release:0.03,gain:0.14}); },
+
+  // realistic scanner capture: rising sweep + noise pass, like a scan head moving
+  shutter(){
+    this.resume();
+    // mechanical "head start" click
+    this.tone({freq:240,type:'triangle',dur:0.05,attack:0.001,decay:0.03,sustain:0.1,release:0.03,gain:0.22});
+    // rising scan tone
+    this.tone({freq:320,freqEnd:1100,type:'sine',dur:0.42,attack:0.01,decay:0.1,sustain:0.7,release:0.12,gain:0.16,delay:0.04});
+    // sweep texture
+    this.noiseSweep({dur:0.45,gain:0.06,fStart:500,fEnd:2600});
+    // soft completion blip
+    this.tone({freq:880,type:'sine',dur:0.08,attack:0.003,decay:0.04,sustain:0.3,release:0.06,gain:0.14,delay:0.46});
+  },
+
+  // processing pass: a short sweep that matches the green scan-line animation
+  process(){
+    this.tone({freq:420,freqEnd:920,type:'sine',dur:0.5,attack:0.01,decay:0.1,sustain:0.6,release:0.15,gain:0.12});
+    this.noiseSweep({dur:0.5,gain:0.04,fStart:600,fEnd:2400});
+  },
+
+  // success chord (save / export) — warm major-third interval
+  success(){
+    this.resume();
+    this.tone({freq:587.33,type:'sine',dur:0.14,attack:0.004,decay:0.06,sustain:0.4,release:0.12,gain:0.16});          // D5
+    this.tone({freq:739.99,type:'sine',dur:0.16,attack:0.004,decay:0.06,sustain:0.4,release:0.14,gain:0.14,delay:0.07}); // F#5
+    this.tone({freq:880,type:'sine',dur:0.22,attack:0.004,decay:0.07,sustain:0.45,release:0.18,gain:0.13,delay:0.14});   // A5
+  },
+
+  // gentle error / not-found — soft low double-thud (never harsh)
+  error(){
+    this.tone({freq:300,type:'triangle',dur:0.12,attack:0.004,decay:0.05,sustain:0.3,release:0.1,gain:0.16});
+    this.tone({freq:220,type:'triangle',dur:0.16,attack:0.004,decay:0.06,sustain:0.3,release:0.12,gain:0.16,delay:0.12});
+  },
+};
+
+/* ---------- Toast ---------- */
+function toast(msg, type='', dur=2600){
+  const wrap = $('toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast '+type;
+  let icon='';
+  if(type==='ok'){ icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; Audio.success(); }
+  if(type==='err'){ icon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'; Audio.error(); }
+  t.innerHTML = icon+'<span>'+msg+'</span>';
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, dur);
+}
+
+/* ---------- View switching ---------- */
+function showView(name){
+  Object.values(views).forEach(v=>v.classList.remove('active'));
+  views[name].classList.add('active');
+}
+
+/* ============================================
+   CAMERA
+   ============================================ */
+let liveDetectRAF = null;
+
+async function openCamera(){
+  showView('camera');
+  try{
+    if(State.stream) stopCamera();
+    State.stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:State.facingMode, width:{ideal:2560}, height:{ideal:1440} },
+      audio:false
+    });
+    const v = $('cameraFeed');
+    v.srcObject = State.stream;
+    await v.play();
+    startLiveDetect();
+  }catch(e){
+    console.error(e);
+    toast(t('t_cam_fail'),'err',3500);
+    // fallback to native camera input
+    $('cameraFileInput').click();
+    showView('home');
+  }
+}
+
+function stopCamera(){
+  if(liveDetectRAF) cancelAnimationFrame(liveDetectRAF);
+  if(State.stream){ State.stream.getTracks().forEach(t=>t.stop()); State.stream=null; }
+}
+
+function startLiveDetect(){
+  const v = $('cameraFeed');
+  const canvas = $('liveDetectCanvas');
+  const hint = $('camHint');
+  const ctx = canvas.getContext('2d');
+  let work = document.createElement('canvas');
+  let lastFound = false;
+  let lastDetect = 0;
+  let cachedQuad = null;          // last detected quad (work coords), reused between detections
+  const DETECT_INTERVAL = 180;    // ms — detection is heavy, throttle it
+
+  function loop(now){
+    if(!State.stream){ return; }
+    if(v.videoWidth){
+      const vw=v.videoWidth, vh=v.videoHeight;
+      const cw=canvas.clientWidth, ch=canvas.clientHeight;
+      if(canvas.width!==cw) canvas.width=cw;
+      if(canvas.height!==ch) canvas.height=ch;
+      const scale = Math.max(cw/vw, ch/vh);
+      const dispW=vw*scale, dispH=vh*scale;
+      const offX=(cw-dispW)/2, offY=(ch-dispH)/2;
+
+      const dw=320, dh=Math.round(vh*(320/vw));
+
+      // Only run the expensive detection every DETECT_INTERVAL ms
+      if(now-lastDetect > DETECT_INTERVAL){
+        lastDetect=now;
+        work.width=dw; work.height=dh;
+        work.getContext('2d').drawImage(v,0,0,dw,dh);
+        try{ cachedQuad = detectQuad(work); }catch(e){ cachedQuad=null; }
+      }
+
+      ctx.clearRect(0,0,cw,ch);
+      if(cachedQuad){
+        ctx.beginPath();
+        cachedQuad.forEach((p,i)=>{
+          const vx=p.x*(vw/dw), vy=p.y*(vh/dh);
+          const dx=offX+vx*scale, dy=offY+vy*scale;
+          if(i===0) ctx.moveTo(dx,dy); else ctx.lineTo(dx,dy);
+        });
+        ctx.closePath();
+        ctx.fillStyle='rgba(0,229,160,0.12)';
+        ctx.fill();
+        ctx.strokeStyle='#00E5A0';
+        ctx.lineWidth=3;
+        ctx.shadowColor='#00E5A0';ctx.shadowBlur=8;
+        ctx.stroke();
+        ctx.shadowBlur=0;
+        if(!lastFound){ hint.innerHTML='<span class="dot"></span>'+t('cam_found'); hint.classList.add('locked'); }
+        lastFound=true;
+        State._liveQuad = cachedQuad.map(p=>({x:p.x*(vw/dw),y:p.y*(vh/dh)}));
+      } else {
+        if(lastFound){ hint.innerHTML='<span class="dot"></span>'+t('cam_hint'); hint.classList.remove('locked'); }
+        lastFound=false;
+        State._liveQuad=null;
+      }
+    }
+    liveDetectRAF = requestAnimationFrame(loop);
+  }
+  liveDetectRAF = requestAnimationFrame(loop);
+}
+
+function captureFromCamera(){
+  const v = $('cameraFeed');
+  if(!v.videoWidth){ toast(t('t_cam_notready'),'err'); return; }
+  Audio.shutter();
+  const c = document.createElement('canvas');
+  c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  const dataUrl = c.toDataURL('image/jpeg',0.95);
+  const liveQuad = State._liveQuad ? State._liveQuad.slice() : null;
+  stopCamera();
+  loadImageToEditor(dataUrl, liveQuad);
+}
+
+/* ============================================
+   QUAD DETECTION (OpenCV)
+   ============================================ */
+function detectQuad(sourceCanvas){
+  if(!window.__LIBS__.cv || typeof cv==='undefined') return null;
+  let src = cv.imread(sourceCanvas);
+  let gray=new cv.Mat(), blur=new cv.Mat(), edges=new cv.Mat();
+  let contours=new cv.MatVector(), hierarchy=new cv.Mat();
+  let best=null, bestScore=-1;
+  try{
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray,blur,new cv.Size(5,5),0);
+    cv.Canny(blur,edges,40,120);
+    let k=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(3,3));
+    cv.dilate(edges,edges,k);
+    cv.erode(edges,edges,k);
+    k.delete();
+    cv.findContours(edges,contours,hierarchy,cv.RETR_LIST,cv.CHAIN_APPROX_SIMPLE);
+    const imgArea = src.rows*src.cols;
+
+    for(let i=0;i<contours.size();i++){
+      const cnt=contours.get(i);
+      const area=cv.contourArea(cnt);
+      // must be a meaningful chunk, but not basically the whole frame (rejects borders/whole image)
+      if(area > imgArea*0.15 && area < imgArea*0.985){
+        const peri=cv.arcLength(cnt,true);
+        let approx=new cv.Mat();
+        cv.approxPolyDP(cnt,approx,0.02*peri,true);
+        if(approx.rows===4 && cv.isContourConvex(approx)){
+          const pts=[];
+          for(let j=0;j<4;j++) pts.push({x:approx.data32S[j*2],y:approx.data32S[j*2+1]});
+          const ordered=orderCorners(pts);
+          // score: prefer larger area AND corners close to 90°
+          const rectness=quadRectangularity(ordered); // 0..1, 1 = perfect rectangle
+          const areaRatio=area/imgArea;
+          const score=areaRatio*0.55 + rectness*0.45;
+          if(rectness>0.55 && score>bestScore){
+            bestScore=score;
+            best=ordered;
+          }
+        }
+        approx.delete();
+      }
+      cnt.delete();
+    }
+  } finally {
+    src.delete();gray.delete();blur.delete();edges.delete();contours.delete();hierarchy.delete();
+  }
+  return best;
+}
+
+// Returns 0..1 where 1 means all four interior angles are ~90° and opposite sides match.
+function quadRectangularity(q){
+  const [tl,tr,br,bl]=q;
+  const ang=(a,b,c)=>{ // angle at b
+    const v1={x:a.x-b.x,y:a.y-b.y}, v2={x:c.x-b.x,y:c.y-b.y};
+    const dot=v1.x*v2.x+v1.y*v2.y;
+    const m1=Math.hypot(v1.x,v1.y), m2=Math.hypot(v2.x,v2.y);
+    if(m1===0||m2===0) return 0;
+    let cos=dot/(m1*m2); cos=Math.max(-1,Math.min(1,cos));
+    return Math.acos(cos)*180/Math.PI;
+  };
+  const angles=[ang(bl,tl,tr),ang(tl,tr,br),ang(tr,br,bl),ang(br,bl,tl)];
+  let dev=0; angles.forEach(a=>dev+=Math.abs(a-90));
+  const angleScore=Math.max(0,1-dev/180); // total deviation up to 180° -> 0
+  return angleScore;
+}
+
+function orderCorners(pts){
+  // order: TL, TR, BR, BL  (for RTL display this is still geometric)
+  const sorted = pts.slice();
+  const sumSort = [...sorted].sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+  const tl=sumSort[0], br=sumSort[3];
+  const diffSort=[...sorted].sort((a,b)=>(a.x-a.y)-(b.x-b.y));
+  const tr=diffSort[3], bl=diffSort[0];
+  return [tl,tr,br,bl];
+}
+
+/* ============================================
+   IMAGE LOADING -> EDITOR
+   ============================================ */
+function loadImageToEditor(dataUrl, presetQuadVideoCoords){
+  const img=new Image();
+  img.onload=()=>{
+    State.currentImage=img;
+    State.imgDims={w:img.naturalWidth,h:img.naturalHeight};
+    State.editorRotation=0;
+    cornerEls=null;            // force a fresh SVG handle set for this image
+    pushHistory('enter-editor');
+    showView('editor');
+    // double rAF: first lets the view become visible & lay out, second runs
+    // after the canvas has its final on-screen size so corner math is correct.
+    requestAnimationFrame(()=>{
+      drawEditor();
+      requestAnimationFrame(()=>{
+        drawEditor(); // re-measure now that layout is settled
+        let quad=null;
+        if(presetQuadVideoCoords && presetQuadVideoCoords.length===4){
+          quad = presetQuadVideoCoords.map(p=>({x:p.x,y:p.y}));
+        } else {
+          quad = detectOnFull(img);
+        }
+        if(quad){
+          State.corners = quad.map(p=>naturalToDisplay(p));
+          // clamp any stray corner into the canvas bounds as a safety net
+          State.corners=State.corners.map(p=>({
+            x:Math.max(0,Math.min(State._cssW,p.x)),
+            y:Math.max(0,Math.min(State._cssH,p.y))
+          }));
+        } else {
+          setFullCorners();
+          toast(t('t_no_edges'),'',3000);
+        }
+        drawCorners();
+      });
+    });
+  };
+  img.src=dataUrl;
+}
+
+function detectOnFull(img){
+  const maxDim=900;
+  const scale=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+  const w=Math.round(img.naturalWidth*scale), h=Math.round(img.naturalHeight*scale);
+  const c=document.createElement('canvas'); c.width=w;c.height=h;
+  c.getContext('2d').drawImage(img,0,0,w,h);
+  const quad=detectQuad(c);
+  if(!quad) return null;
+  return quad.map(p=>({x:p.x/scale,y:p.y/scale}));
+}
+
+/* ---------- Editor canvas drawing ----------
+   Coordinate system: State.corners are stored in *displayed CSS pixels*
+   relative to the canvas top-left. The SVG overlay is positioned exactly
+   over the canvas with width/height in CSS px and NO viewBox, so SVG user
+   units == CSS px == the same space corners live in. This keeps drawing,
+   touch input, and the magnifier all in one consistent space. */
+function drawEditor(){
+  const wrap=$('editorWrap');
+  const canvas=$('editorCanvas');
+  const ctx=canvas.getContext('2d');
+  const maxW=wrap.clientWidth-32, maxH=wrap.clientHeight-32;
+
+  let iw=State.imgDims.w, ih=State.imgDims.h;
+  if(State.editorRotation%180!==0){ [iw,ih]=[ih,iw]; }
+
+  // device-pixel-ratio backing store for sharpness, CSS size = layout size
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  const scale=Math.min(maxW/iw, maxH/ih);          // CSS px per natural px
+  const cssW=Math.round(iw*scale), cssH=Math.round(ih*scale);
+
+  canvas.width=Math.round(cssW*dpr);
+  canvas.height=Math.round(cssH*dpr);
+  canvas.style.width=cssW+'px';
+  canvas.style.height=cssH+'px';
+  State.editorScale=scale;        // maps natural <-> CSS display px
+  State._cssW=cssW; State._cssH=cssH;
+
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+  ctx.save();
+  ctx.translate(cssW/2,cssH/2);
+  ctx.rotate(State.editorRotation*Math.PI/180);
+  const rw=(State.editorRotation%180!==0)?cssH:cssW;
+  const rh=(State.editorRotation%180!==0)?cssW:cssH;
+  ctx.drawImage(State.currentImage,-rw/2,-rh/2,rw,rh);
+  ctx.restore();
+
+  // position svg overlay exactly over the canvas (CSS px space, no viewBox)
+  const svg=$('cornerSvg');
+  const rect=canvas.getBoundingClientRect();
+  const wrapRect=wrap.getBoundingClientRect();
+  svg.style.left=(rect.left-wrapRect.left)+'px';
+  svg.style.top=(rect.top-wrapRect.top)+'px';
+  svg.style.width=cssW+'px';
+  svg.style.height=cssH+'px';
+  svg.removeAttribute('viewBox');
+}
+
+function naturalToDisplay(p){
+  // accounts for rotation
+  let iw=State.imgDims.w, ih=State.imgDims.h;
+  const s=State.editorScale;
+  const rot=State.editorRotation%360;
+  let x=p.x*s, y=p.y*s;
+  const W=iw*s, H=ih*s;
+  if(rot===90)  return {x:H-y, y:x};
+  if(rot===180) return {x:W-x, y:H-y};
+  if(rot===270) return {x:y, y:W-x};
+  return {x,y};
+}
+function displayToNatural(p){
+  // inverse of naturalToDisplay. W,H are the *unrotated* natural dims scaled.
+  const s=State.editorScale;
+  const rot=State.editorRotation%360;
+  const W=State.imgDims.w*s, H=State.imgDims.h*s;
+  let nx,ny;
+  if(rot===90)      { nx=p.y/s;        ny=(H-p.x)/s; }
+  else if(rot===180){ nx=(W-p.x)/s;    ny=(H-p.y)/s; }
+  else if(rot===270){ nx=(W-p.y)/s;    ny=p.x/s; }
+  else              { nx=p.x/s;        ny=p.y/s; }
+  return {x:nx,y:ny};
+}
+
+function setFullCorners(){
+  const m=2;
+  const W=State._cssW, H=State._cssH;
+  State.corners=[
+    {x:m,y:m},
+    {x:W-m,y:m},
+    {x:W-m,y:H-m},
+    {x:m,y:H-m},
+  ];
+}
+
+const SVGNS='http://www.w3.org/2000/svg';
+let cornerEls=null; // {path, handles:[{hit,ring,dot}*4]}
+
+function buildCornerSVG(){
+  const svg=$('cornerSvg');
+  svg.innerHTML='';
+  cornerEls={path:null,handles:[]};
+
+  const path=document.createElementNS(SVGNS,'path');
+  path.setAttribute('fill','rgba(0,229,160,0.10)');
+  path.setAttribute('stroke','#00E5A0');
+  path.setAttribute('stroke-width','2');
+  path.setAttribute('stroke-linejoin','round');
+  path.style.pointerEvents='none';
+  svg.appendChild(path);
+  cornerEls.path=path;
+
+  for(let i=0;i<4;i++){
+    const ring=document.createElementNS(SVGNS,'circle');
+    ring.setAttribute('r','13');
+    ring.setAttribute('fill','rgba(0,229,160,0.18)');
+    ring.setAttribute('stroke','#00E5A0');
+    ring.setAttribute('stroke-width','2.5');
+    ring.style.pointerEvents='none';
+    svg.appendChild(ring);
+
+    const dot=document.createElementNS(SVGNS,'circle');
+    dot.setAttribute('r','4');
+    dot.setAttribute('fill','#00E5A0');
+    dot.style.pointerEvents='none';
+    svg.appendChild(dot);
+
+    // large transparent hit target on top for easy grabbing
+    const hit=document.createElementNS(SVGNS,'circle');
+    hit.setAttribute('r','32');
+    hit.setAttribute('fill','transparent');
+    hit.setAttribute('class','corner-handle');
+    hit.setAttribute('data-i',String(i));
+    hit.style.pointerEvents='all';
+    hit.style.cursor='grab';
+    svg.appendChild(hit);
+
+    cornerEls.handles.push({ring,dot,hit});
+  }
+}
+
+// Fast partial update — only moves existing nodes, no DOM rebuild.
+function drawCorners(){
+  const svg=$('cornerSvg');
+  if(!State.corners){ if(cornerEls){svg.innerHTML='';cornerEls=null;} return; }
+  if(!cornerEls) buildCornerSVG();
+  const c=State.corners;
+  cornerEls.path.setAttribute('d',
+    `M${c[0].x},${c[0].y} L${c[1].x},${c[1].y} L${c[2].x},${c[2].y} L${c[3].x},${c[3].y} Z`);
+  for(let i=0;i<4;i++){
+    const h=cornerEls.handles[i], p=c[i];
+    h.ring.setAttribute('cx',p.x); h.ring.setAttribute('cy',p.y);
+    h.dot.setAttribute('cx',p.x);  h.dot.setAttribute('cy',p.y);
+    h.hit.setAttribute('cx',p.x);  h.hit.setAttribute('cy',p.y);
+  }
+}
+
+/* ---------- Corner dragging ---------- */
+let dragCorner=null;
+/* ---------- Undo history (editor) ---------- */
+function snapshotCorners(){
+  return {
+    corners: State.corners ? State.corners.map(p=>({x:p.x,y:p.y})) : null,
+    rotation: State.editorRotation
+  };
+}
+function pushHistory(label){
+  if(!State._history) State._history=[];
+  // 'enter-editor' starts a clean stack for the new image
+  if(label==='enter-editor'){ State._history=[]; updateUndoBtn(); return; }
+  State._history.push(snapshotCorners());
+  if(State._history.length>40) State._history.shift();
+  updateUndoBtn();
+}
+function undo(){
+  if(!State._history || !State._history.length) return;
+  const prev=State._history.pop();
+  if(prev.rotation!==State.editorRotation){
+    State.editorRotation=prev.rotation;
+    drawEditor();
+  }
+  State.corners = prev.corners ? prev.corners.map(p=>({x:p.x,y:p.y})) : null;
+  // corners were stored in display space for the rotation they belong to; redraw
+  drawCorners();
+  updateUndoBtn();
+}
+function updateUndoBtn(){
+  const b=$('undoBtn');
+  if(!b) return;
+  b.disabled = !(State._history && State._history.length);
+}
+
+function setupCornerDrag(){
+  const svg=$('cornerSvg');
+  const mag=$('magnifier');
+  let magRAF=null, pendingPt=null;
+
+  function getPt(e){
+    const rect=svg.getBoundingClientRect();
+    const sx=(State._cssW||rect.width)/rect.width;
+    const sy=(State._cssH||rect.height)/rect.height;
+    return {
+      x:(e.clientX-rect.left)*sx,
+      y:(e.clientY-rect.top)*sy,
+      clientX:e.clientX, clientY:e.clientY
+    };
+  }
+  function start(e){
+    const target=e.target.closest('.corner-handle');
+    if(!target) return;
+    e.preventDefault();
+    pushHistory('drag');       // remember state before this drag so it can be undone
+    Audio.pick();
+    dragCorner=parseInt(target.dataset.i);
+    try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+    mag.style.display='block';
+    scheduleMag(getPt(e));
+  }
+  function move(e){
+    if(dragCorner===null) return;
+    e.preventDefault();
+    const pt=getPt(e);
+    pt.x=Math.max(0,Math.min(State._cssW,pt.x));
+    pt.y=Math.max(0,Math.min(State._cssH,pt.y));
+    State.corners[dragCorner]={x:pt.x,y:pt.y};
+    drawCorners();              // cheap partial update — runs every move, stays smooth
+    scheduleMag(pt);            // magnifier redraw throttled to animation frame
+  }
+  function end(e){
+    if(dragCorner===null) return;
+    dragCorner=null;
+    if(magRAF){ cancelAnimationFrame(magRAF); magRAF=null; }
+    mag.style.display='none';
+    try{ svg.releasePointerCapture(e.pointerId); }catch(_){}
+  }
+  function scheduleMag(pt){
+    pendingPt=pt;
+    if(magRAF) return;
+    magRAF=requestAnimationFrame(()=>{ magRAF=null; if(pendingPt) updateMag(pendingPt); });
+  }
+  function updateMag(pt){
+    const canvas=$('editorCanvas');
+    const magC=$('magCanvas');
+    const mctx=magC.getContext('2d');
+    const zoom=2.6, size=120;
+    const bx=canvas.width/State._cssW;     // = dpr
+    const by=canvas.height/State._cssH;
+    const sx=pt.x*bx, sy=pt.y*by;
+    const half=size/(2*zoom);
+    mctx.fillStyle='#0E1419';mctx.fillRect(0,0,size,size);
+    mctx.drawImage(canvas, sx-half*bx, sy-half*by, half*2*bx, half*2*by, 0,0,size,size);
+    const wrap=$('editorWrap');
+    const wrapRect=wrap.getBoundingClientRect();
+    let mx=pt.clientX-wrapRect.left-size/2;
+    let my=pt.clientY-wrapRect.top-size-26;
+    if(my<6) my=pt.clientY-wrapRect.top+30;
+    mx=Math.max(6,Math.min(wrapRect.width-size-6,mx));
+    mag.style.left=mx+'px';
+    mag.style.top=my+'px';
+  }
+
+  // Pointer Events unify mouse+touch and deliver smoother high-frequency moves.
+  svg.addEventListener('pointerdown',start);
+  svg.addEventListener('pointermove',move);
+  svg.addEventListener('pointerup',end);
+  svg.addEventListener('pointercancel',end);
+}
+
+/* ============================================
+   PERSPECTIVE WARP
+   ============================================ */
+function warpToDocument(){
+  const naturalCorners = State.corners.map(p=>displayToNatural(p));
+  // compute output size from edge lengths
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const [tl,tr,br,bl]=naturalCorners;
+  const widthTop=dist(tl,tr), widthBot=dist(bl,br);
+  const heightL=dist(tl,bl), heightR=dist(tr,br);
+  let outW=Math.round(Math.max(widthTop,widthBot));
+  let outH=Math.round(Math.max(heightL,heightR));
+  outW=Math.max(80,outW); outH=Math.max(80,outH);
+
+  // source canvas at natural resolution (with rotation applied)
+  const srcCanvas=document.createElement('canvas');
+  let iw=State.imgDims.w, ih=State.imgDims.h;
+  if(State.editorRotation%180!==0){ srcCanvas.width=ih; srcCanvas.height=iw; }
+  else { srcCanvas.width=iw; srcCanvas.height=ih; }
+  const sctx=srcCanvas.getContext('2d');
+  sctx.save();
+  sctx.translate(srcCanvas.width/2,srcCanvas.height/2);
+  sctx.rotate(State.editorRotation*Math.PI/180);
+  sctx.drawImage(State.currentImage,-iw/2,-ih/2,iw,ih);
+  sctx.restore();
+
+  let src=cv.imread(srcCanvas);
+  let dst=new cv.Mat();
+  const srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]);
+  const dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,outW,0,outW,outH,0,outH]);
+  const M=cv.getPerspectiveTransform(srcTri,dstTri);
+  cv.warpPerspective(src,dst,M,new cv.Size(outW,outH),cv.INTER_LINEAR,cv.BORDER_REPLICATE);
+
+  const out=document.createElement('canvas');
+  out.width=outW; out.height=outH;
+  cv.imshow(out,dst);
+
+  src.delete();dst.delete();srcTri.delete();dstTri.delete();M.delete();
+  State.warpedCanvas=out;
+  return out;
+}
+
+/* ============================================
+   PROCESSING / FILTERS
+   ============================================ */
+function applyShadowRemoval(srcMat){
+  // Flatten illumination: divide image by a heavily-blurred (large-kernel) version.
+  // GaussianBlur is far faster than medianBlur on big images and gives a smooth
+  // illumination estimate, which is exactly what we want for shadow flattening.
+  let blurred=new cv.Mat();
+  // kernel ~1/8 of the smaller side, capped, forced odd
+  let kk=Math.round(Math.min(srcMat.rows,srcMat.cols)/8);
+  kk=Math.min(Math.max(kk,21),151);
+  if(kk%2===0) kk++;
+  cv.GaussianBlur(srcMat,blurred,new cv.Size(kk,kk),0,0,cv.BORDER_REPLICATE);
+
+  let srcF=new cv.Mat(), blurF=new cv.Mat(), div=new cv.Mat(), result=new cv.Mat();
+  let ones=null;
+  try{
+    srcMat.convertTo(srcF,cv.CV_32F);
+    blurred.convertTo(blurF,cv.CV_32F);
+    // avoid divide-by-zero: blurF += 1
+    ones=cv.Mat.ones(blurF.rows,blurF.cols,blurF.type());
+    cv.add(blurF,ones,blurF);
+    // div = (srcF / blurF) * 255
+    cv.divide(srcF,blurF,div,255);
+    div.convertTo(result,cv.CV_8U);
+  } finally {
+    srcF.delete();blurF.delete();div.delete();blurred.delete();
+    if(ones) ones.delete();
+  }
+  return result;
+}
+
+function processImage(){
+  if(!State.warpedCanvas) return;
+  const canvas=$('processCanvas');
+  let src=cv.imread(State.warpedCanvas);
+  let work=new cv.Mat();
+  cv.cvtColor(src,work,cv.COLOR_RGBA2RGB);
+
+  const mode=State.activeMode;
+  let out=new cv.Mat();
+
+  try{
+    if(mode==='bw'){
+      let gray=new cv.Mat();
+      cv.cvtColor(work,gray,cv.COLOR_RGB2GRAY);
+      if(State.settings.shadowRemoval){
+        let flat=applyShadowRemoval(gray);
+        gray.delete(); gray=flat;
+      }
+      // adaptive threshold
+      let bw=new cv.Mat();
+      const blockBase = 15 + Math.round(State.adjust.contrast/10)*2;
+      const block = Math.max(11, blockBase|1);
+      const C = 10 - State.adjust.brightness/12;
+      cv.adaptiveThreshold(gray,bw,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY, block%2===0?block+1:block, C);
+      cv.cvtColor(bw,out,cv.COLOR_GRAY2RGBA);
+      gray.delete();bw.delete();
+    }
+    else if(mode==='gray'){
+      let gray=new cv.Mat();
+      cv.cvtColor(work,gray,cv.COLOR_RGB2GRAY);
+      if(State.settings.shadowRemoval){
+        let flat=applyShadowRemoval(gray); gray.delete(); gray=flat;
+      }
+      applyBrightnessContrast(gray);
+      cv.cvtColor(gray,out,cv.COLOR_GRAY2RGBA);
+      gray.delete();
+    }
+    else if(mode==='color'){
+      let rgb=work.clone();
+      if(State.settings.shadowRemoval){
+        // Flatten illumination on the luminance, then scale each RGB channel by
+        // the same per-pixel correction ratio so colour is preserved.
+        let gray=new cv.Mat();
+        cv.cvtColor(rgb,gray,cv.COLOR_RGB2GRAY);
+        let flat=applyShadowRemoval(gray);            // illumination-corrected luminance
+        // ratio = flat/gray (per pixel), then multiply rgb by ratio
+        let grayF=new cv.Mat(), flatF=new cv.Mat(), ratio=new cv.Mat();
+        gray.convertTo(grayF,cv.CV_32F);
+        flat.convertTo(flatF,cv.CV_32F);
+        let one=cv.Mat.ones(grayF.rows,grayF.cols,grayF.type());
+        cv.add(grayF,one,grayF);
+        cv.divide(flatF,grayF,ratio,1);                // ratio in float
+        // apply ratio to each channel
+        let ch=new cv.MatVector();
+        cv.split(rgb,ch);
+        for(let i=0;i<3;i++){
+          let cf=new cv.Mat();
+          ch.get(i).convertTo(cf,cv.CV_32F);
+          cv.multiply(cf,ratio,cf,1);
+          cf.convertTo(ch.get(i),cv.CV_8U);
+          cf.delete();
+        }
+        cv.merge(ch,rgb);
+        ch.delete();
+        gray.delete();flat.delete();grayF.delete();flatF.delete();ratio.delete();one.delete();
+      }
+      whiteBalance(rgb);
+      applyBrightnessContrast(rgb, true);
+      cv.cvtColor(rgb,out,cv.COLOR_RGB2RGBA);
+      rgb.delete();
+    }
+    else { // original
+      let rgb=work.clone();
+      applyBrightnessContrast(rgb,true);
+      cv.cvtColor(rgb,out,cv.COLOR_RGB2RGBA);
+      rgb.delete();
+    }
+    cv.imshow(canvas,out);
+  }catch(e){
+    console.error('process error',e);
+    cv.imshow(canvas,src);
+  }finally{
+    src.delete();work.delete();out.delete();
+  }
+}
+
+function applyBrightnessContrast(mat, isColor){
+  const b=State.adjust.brightness, c=State.adjust.contrast;
+  if(b===0&&c===0) return;
+  const alpha=1+c/100;            // contrast
+  const beta=b;                    // brightness
+  mat.convertTo(mat,-1,alpha,beta);
+}
+
+function whiteBalance(rgb){
+  // gray-world white balance
+  let channels=new cv.MatVector();
+  cv.split(rgb,channels);
+  let means=[];
+  for(let i=0;i<3;i++){ means.push(cv.mean(channels.get(i))[0]); }
+  const avg=(means[0]+means[1]+means[2])/3;
+  for(let i=0;i<3;i++){
+    const scale=avg/(means[i]||1);
+    channels.get(i).convertTo(channels.get(i),-1,scale,0);
+  }
+  cv.merge(channels,rgb);
+  channels.delete();
+}
+
+/* ---------- Mode thumbnails ---------- */
+function buildModeCards(){
+  const scroll=$('modeScroll');
+  scroll.innerHTML='';
+  MODES.forEach(m=>{
+    const card=document.createElement('button');
+    card.className='mode-card'+(m.id===State.activeMode?' active':'');
+    card.dataset.mode=m.id;
+    card.innerHTML=`<div class="mode-thumb"><canvas width="38" height="46"></canvas></div><span>${m.name}</span>`;
+    card.addEventListener('click',()=>{
+      Audio.tap();
+      State.activeMode=m.id;
+      document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      runScanFx();
+      processImage();
+    });
+    scroll.appendChild(card);
+  });
+  renderModeThumbs();
+}
+
+function renderModeThumbs(){
+  if(!State.warpedCanvas) return;
+  // small preview source
+  const small=document.createElement('canvas');
+  const ss=Math.min(1,120/Math.max(State.warpedCanvas.width,State.warpedCanvas.height));
+  small.width=Math.round(State.warpedCanvas.width*ss);
+  small.height=Math.round(State.warpedCanvas.height*ss);
+  small.getContext('2d').drawImage(State.warpedCanvas,0,0,small.width,small.height);
+
+  document.querySelectorAll('.mode-card').forEach(card=>{
+    const mode=card.dataset.mode;
+    const tc=card.querySelector('canvas');
+    const tctx=tc.getContext('2d');
+    try{
+      let src=cv.imread(small);
+      let rgb=new cv.Mat(); cv.cvtColor(src,rgb,cv.COLOR_RGBA2RGB);
+      let out=new cv.Mat();
+      if(mode==='bw'){
+        let g=new cv.Mat();cv.cvtColor(rgb,g,cv.COLOR_RGB2GRAY);
+        let bw=new cv.Mat();
+        cv.adaptiveThreshold(g,bw,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,15,10);
+        cv.cvtColor(bw,out,cv.COLOR_GRAY2RGBA);g.delete();bw.delete();
+      } else if(mode==='gray'){
+        let g=new cv.Mat();cv.cvtColor(rgb,g,cv.COLOR_RGB2GRAY);
+        cv.cvtColor(g,out,cv.COLOR_GRAY2RGBA);g.delete();
+      } else if(mode==='color'){
+        let r=rgb.clone();whiteBalance(r);cv.cvtColor(r,out,cv.COLOR_RGB2RGBA);r.delete();
+      } else { cv.cvtColor(rgb,out,cv.COLOR_RGB2RGBA); }
+      // fit into thumb
+      const tmp=document.createElement('canvas');tmp.width=small.width;tmp.height=small.height;
+      cv.imshow(tmp,out);
+      const r2=Math.min(38/tmp.width,46/tmp.height);
+      const fw=tmp.width*r2,fh=tmp.height*r2;
+      tctx.fillStyle='#fff';tctx.fillRect(0,0,38,46);
+      tctx.drawImage(tmp,(38-fw)/2,(46-fh)/2,fw,fh);
+      src.delete();rgb.delete();out.delete();
+    }catch(e){}
+  });
+}
+
+function runScanFx(){
+  const fx=$('scanlineFx');
+  fx.classList.remove('run');
+  void fx.offsetWidth;
+  fx.classList.add('run');
+  Audio.process();
+  setTimeout(()=>fx.classList.remove('run'),1100);
+}
+
+/* ============================================
+   PAGES MANAGEMENT
+   ============================================ */
+function savePage(){
+  const canvas=$('processCanvas');
+  const dataUrl=canvas.toDataURL('image/jpeg',0.92);
+  // thumb
+  const tc=document.createElement('canvas');
+  const ts=Math.min(1,200/Math.max(canvas.width,canvas.height));
+  tc.width=Math.round(canvas.width*ts);tc.height=Math.round(canvas.height*ts);
+  tc.getContext('2d').drawImage(canvas,0,0,tc.width,tc.height);
+  const thumb=tc.toDataURL('image/jpeg',0.7);
+
+  const page={
+    id:'p'+Date.now()+Math.random().toString(36).slice(2,6),
+    dataUrl, thumb,
+    mode:State.activeMode,
+    name:'صفحة '+(State.pages.length+1),
+    ts:Date.now()
+  };
+  State.pages.push(page);
+  persistSession();
+  updatePageCount();
+  toast(t('t_page_added'),'ok');
+  // reset to home for next capture
+  State.warpedCanvas=null;
+  State.adjust={brightness:0,contrast:0};
+  $('brightSlider').value=0;$('contrastSlider').value=0;
+  $('brightVal').textContent='0';$('contrastVal').textContent='0';
+  showView('home');
+  openDrawer();
+}
+
+function updatePageCount(){
+  const n=State.pages.length;
+  const badge=$('pageCount');
+  const dc=$('drawerCount');
+  dc.textContent=n;
+  if(n>0){ badge.classList.remove('hidden'); badge.textContent=n; }
+  else badge.classList.add('hidden');
+  renderPagesList();
+}
+
+function renderPagesList(){
+  const list=$('pagesList');
+  const empty=$('pagesEmpty');
+  list.querySelectorAll('.page-item').forEach(e=>e.remove());
+  if(State.pages.length===0){ empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  State.pages.forEach((pg,idx)=>{
+    const item=document.createElement('div');
+    item.className='page-item';
+    item.draggable=false;
+    item.dataset.id=pg.id;
+    const modeLabel=(MODES.find(m=>m.id===pg.mode)||{}).name||'';
+    item.innerHTML=`
+      <div class="page-grip" data-grip>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+      </div>
+      <div class="page-thumb"><img src="${pg.thumb}" alt=""></div>
+      <div class="page-info">
+        <div class="pname">${t('page')} ${idx+1}</div>
+        <div class="pmeta">${modeLabel}</div>
+      </div>
+      <button class="page-del" data-del aria-label="${t('clear_all')}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    `;
+    item.querySelector('[data-del]').addEventListener('click',()=>{
+      Audio.tap();
+      State.pages=State.pages.filter(p=>p.id!==pg.id);
+      persistSession();updatePageCount();
+    });
+    setupPageDrag(item);
+    list.appendChild(item);
+  });
+}
+
+/* ---------- Drag reorder (pointer events) ---------- */
+function setupPageDrag(item){
+  const grip=item.querySelector('[data-grip]');
+  let startY=0, dragging=false, placeholder=null, clone=null;
+
+  function down(e){
+    e.preventDefault();
+    dragging=true;
+    const t=e.touches?e.touches[0]:e;
+    startY=t.clientY;
+    item.classList.add('dragging');
+    State.dragPageId=item.dataset.id;
+  }
+  function moveHandler(e){
+    if(!dragging) return;
+    e.preventDefault();
+    const t=e.touches?e.touches[0]:e;
+    const list=$('pagesList');
+    const items=[...list.querySelectorAll('.page-item:not(.dragging)')];
+    const after=items.find(it=>{
+      const r=it.getBoundingClientRect();
+      return t.clientY < r.top + r.height/2;
+    });
+    if(after) list.insertBefore(item,after);
+    else list.appendChild(item);
+  }
+  function up(){
+    if(!dragging) return;
+    dragging=false;
+    item.classList.remove('dragging');
+    // rebuild order
+    const list=$('pagesList');
+    const ids=[...list.querySelectorAll('.page-item')].map(i=>i.dataset.id);
+    State.pages.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));
+    persistSession();
+    renderPagesList();
+    updatePageCount();
+  }
+  grip.addEventListener('touchstart',down,{passive:false});
+  grip.addEventListener('touchmove',moveHandler,{passive:false});
+  grip.addEventListener('touchend',up);
+  grip.addEventListener('mousedown',down);
+  window.addEventListener('mousemove',moveHandler);
+  window.addEventListener('mouseup',up);
+}
+
+/* ============================================
+   EXPORT
+   ============================================ */
+function timestamp(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+async function exportPDF(){
+  if(State.pages.length===0){ toast(t('t_no_pages'),'err'); return; }
+  if(!window.__LIBS__.jspdf){ toast(t('t_pdf_notready'),'err'); return; }
+  toast(t('t_pdf_making'));
+  const { jsPDF } = window.jspdf;
+  const paper=State.settings.paper;
+  let doc;
+  const quality=State.settings.quality;
+
+  for(let i=0;i<State.pages.length;i++){
+    const pg=State.pages[i];
+    const img=await loadImg(pg.dataUrl);
+    let pw,ph,orientation;
+    if(paper==='fit'){
+      orientation=img.width>img.height?'l':'p';
+      pw=img.width; ph=img.height;
+      if(i===0) doc=new jsPDF({orientation,unit:'px',format:[pw,ph]});
+      else doc.addPage([pw,ph],orientation);
+      doc.addImage(pg.dataUrl,'JPEG',0,0,pw,ph,undefined,'FAST');
+    } else {
+      const fmt=paper==='letter'?'letter':'a4';
+      orientation=img.width>img.height?'l':'p';
+      if(i===0) doc=new jsPDF({orientation,unit:'mm',format:fmt});
+      else doc.addPage(fmt,orientation);
+      const pageW=doc.internal.pageSize.getWidth();
+      const pageH=doc.internal.pageSize.getHeight();
+      const margin=6;
+      const availW=pageW-margin*2, availH=pageH-margin*2;
+      const ratio=Math.min(availW/img.width, availH/img.height);
+      const w=img.width*ratio, h=img.height*ratio;
+      const x=(pageW-w)/2, y=(pageH-h)/2;
+      doc.addImage(pg.dataUrl,'JPEG',x,y,w,h,undefined,'FAST');
+    }
+  }
+  doc.save(`مستند_${timestamp()}.pdf`);
+  toast(t('t_pdf_saved'),'ok');
+}
+
+async function exportImages(){
+  if(State.pages.length===0){ toast(t('t_no_pages'),'err'); return; }
+  if(State.pages.length===1){
+    downloadDataUrl(State.pages[0].dataUrl, `مستند_${timestamp()}.jpg`);
+    toast(t('t_img_saved'),'ok');
+    return;
+  }
+  // multiple -> download each
+  for(let i=0;i<State.pages.length;i++){
+    downloadDataUrl(State.pages[i].dataUrl, `مستند_${timestamp()}_${i+1}.jpg`);
+    await new Promise(r=>setTimeout(r,300));
+  }
+  toast(t('t_imgs_saved',{n:State.pages.length}),'ok');
+}
+
+function downloadDataUrl(url,name){
+  const a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+}
+function loadImg(src){return new Promise(res=>{const i=new Image();i.onload=()=>res(i);i.src=src;});}
+
+/* ============================================
+   OCR (lazy Tesseract)
+   ============================================ */
+let ocrWorker=null;
+// Prepare a clean, high-resolution binary image specifically for OCR.
+// Adaptive threshold (used for the visual B&W mode) tends to fragment connected
+// Arabic letterforms; for OCR a clean Otsu threshold on an illumination-flattened
+// grayscale works far better. We also upscale small scans so glyphs are big enough.
+function buildOCRCanvas(){
+  const srcCanvas=State.warpedCanvas;
+  if(!srcCanvas) return $('processCanvas');
+  // Upscale so the smaller side is ~2000px. Tesseract reads large, crisp glyphs
+  // far better, and Arabic letterforms need the extra resolution to stay joined.
+  const minSide=Math.min(srcCanvas.width,srcCanvas.height);
+  let up=1;
+  if(minSide<2000) up=Math.min(2.6, 2000/minSide);
+  const w=Math.round(srcCanvas.width*up), h=Math.round(srcCanvas.height*up);
+  const big=document.createElement('canvas'); big.width=w; big.height=h;
+  const bx=big.getContext('2d');
+  bx.imageSmoothingEnabled=true; bx.imageSmoothingQuality='high';
+  bx.drawImage(srcCanvas,0,0,w,h);
+
+  let out=document.createElement('canvas');
+  try{
+    let src=cv.imread(big);
+    let gray=new cv.Mat();
+    cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
+    if(State.settings.shadowRemoval){
+      let flat=applyShadowRemoval(gray); gray.delete(); gray=flat;
+    }
+    // mild denoise, then Otsu threshold (global — preserves connected strokes)
+    let den=new cv.Mat();
+    try{
+      cv.bilateralFilter(gray,den,5,40,40,cv.BORDER_DEFAULT);
+    }catch(_){
+      cv.GaussianBlur(gray,den,new cv.Size(3,3),0); // fallback if bilateral isn't built in
+    }
+    let bin=new cv.Mat();
+    cv.threshold(den,bin,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
+
+    // Remove tiny isolated specks (scanner noise Tesseract mistakes for dots/marks)
+    // without eroding text: invert so text=white, open with a 2x2 kernel, invert back.
+    let inv=new cv.Mat();
+    cv.bitwise_not(bin,inv);
+    let k=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(2,2));
+    cv.morphologyEx(inv,inv,cv.MORPH_OPEN,k);
+    cv.bitwise_not(inv,bin);
+    k.delete();inv.delete();
+
+    out.width=w; out.height=h;
+    cv.imshow(out,bin);
+    src.delete();gray.delete();den.delete();bin.delete();
+  }catch(e){
+    console.error('ocr prep failed, falling back',e);
+    return State.warpedCanvas;
+  }
+  return out;
+}
+
+async function runOCR(){
+  openSheet('ocr');
+  $('ocrStatus').classList.remove('hidden');
+  $('ocrTextArea').classList.add('hidden');
+  $('ocrFoot').classList.add('hidden');
+  const statusText=$('ocrStatusText');
+  const progBar=$('ocrProgressBar');
+  progBar.style.width='0%';
+  progBar.style.background='';
+
+  try{
+    statusText.textContent=t('ocr_load');
+    await window.__loadTesseract();
+    progBar.style.width='12%';
+
+    statusText.textContent=t('ocr_lang_init');
+    if(ocrWorker){ try{await ocrWorker.terminate();}catch(e){} ocrWorker=null; }
+    ocrWorker = await Tesseract.createWorker(State.ocrLang,1,{
+      logger:m=>{
+        if(m.status==='recognizing text'){
+          const pct=20+Math.round(m.progress*78);
+          progBar.style.width=pct+'%';
+          statusText.textContent=t('ocr_reading')+' '+Math.round(m.progress*100)+'%';
+        }
+      }
+    });
+    // Tuning that helps Arabic page scans: treat as a uniform block of text,
+    // and preserve interword spaces.
+    try{
+      await ocrWorker.setParameters({
+        // page segmentation chosen by the user (auto / single column / columns / line)
+        tessedit_pageseg_mode: State.ocrPSM || '3',
+        preserve_interword_spaces: '1'
+      });
+    }catch(e){}
+
+    progBar.style.width='20%';
+    statusText.textContent=t('ocr_prep_img');
+    const ocrCanvas=buildOCRCanvas();
+
+    statusText.textContent=t('ocr_reading');
+    const { data } = await ocrWorker.recognize(ocrCanvas);
+    progBar.style.width='100%';
+
+    const ta=$('ocrTextArea');
+    ta.value=cleanOCRText(data.text)||t('ocr_none');
+    $('ocrStatus').classList.add('hidden');
+    ta.classList.remove('hidden');
+    $('ocrFoot').classList.remove('hidden');
+  }catch(e){
+    console.error(e);
+    statusText.textContent=t('ocr_fail');
+    progBar.style.background='#FF5C6C';
+  }
+}
+
+// Tidy common OCR noise: collapse blank lines and stray spaces.
+function cleanOCRText(t){
+  if(!t) return '';
+  return t
+    .replace(/[ \t]+\n/g,'\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .replace(/[ \t]{2,}/g,' ')
+    .trim();
+}
+
+/* ============================================
+   DRAWER / SHEETS
+   ============================================ */
+function openDrawer(){ $('pagesDrawer').classList.add('open'); $('drawerBackdrop').classList.add('open'); }
+function closeDrawer(){ $('pagesDrawer').classList.remove('open'); $('drawerBackdrop').classList.remove('open'); }
+function openSheet(which){
+  if(which==='ocr'){ $('ocrSheet').classList.add('open'); $('ocrBackdrop').classList.add('open'); }
+  if(which==='settings'){ $('settingsSheet').classList.add('open'); $('settingsBackdrop').classList.add('open'); }
+}
+function closeSheet(which){
+  if(which==='ocr'){ $('ocrSheet').classList.remove('open'); $('ocrBackdrop').classList.remove('open'); }
+  if(which==='settings'){ $('settingsSheet').classList.remove('open'); $('settingsBackdrop').classList.remove('open'); }
+}
+
+/* ============================================
+   SESSION PERSISTENCE (IndexedDB)
+   ============================================ */
+const DB_NAME='scanbay_db', STORE='session';
+function idbSet(key,val){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>req.result.createObjectStore(STORE);
+    req.onsuccess=()=>{
+      const tx=req.result.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).put(val,key);
+      tx.oncomplete=()=>{req.result.close();res();};
+      tx.onerror=()=>rej(tx.error);
+    };
+    req.onerror=()=>rej(req.error);
+  });
+}
+function idbGet(key){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>req.result.createObjectStore(STORE);
+    req.onsuccess=()=>{
+      const tx=req.result.transaction(STORE,'readonly');
+      const g=tx.objectStore(STORE).get(key);
+      g.onsuccess=()=>{req.result.close();res(g.result);};
+      g.onerror=()=>rej(g.error);
+    };
+    req.onerror=()=>rej(req.error);
+  });
+}
+
+function persistSession(){
+  if(!State.settings.session) return;
+  idbSet('pages', State.pages).catch(()=>{});
+}
+async function restoreSession(){
+  if(!State.settings.session) return;
+  try{
+    const saved=await idbGet('pages');
+    if(saved && saved.length){
+      State.pages=saved;
+      updatePageCount();
+      toast(t('t_restored'),'ok');
+    }
+  }catch(e){}
+}
+function loadSettings(){
+  try{
+    const s=JSON.parse(localStorage.getItem('scanbay_settings')||'null');
+    if(s) Object.assign(State.settings,s);
+  }catch(e){}
+  // reflect in UI
+  $('soundToggle').classList.toggle('on',State.settings.sound);
+  Audio.enabled=State.settings.sound;
+  $('shadowToggle').classList.toggle('on',State.settings.shadowRemoval);
+  $('autoRotateToggle').classList.toggle('on',State.settings.autoRotate);
+  $('sessionToggle').classList.toggle('on',State.settings.session);
+  document.querySelectorAll('#qualitySeg button').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.q)===State.settings.quality));
+  document.querySelectorAll('#paperSeg button').forEach(b=>b.classList.toggle('active',b.dataset.p===State.settings.paper));
+}
+function saveSettings(){ localStorage.setItem('scanbay_settings',JSON.stringify(State.settings)); }
+
+/* ============================================
+   EVENT BINDING
+   ============================================ */
+function bindEvents(){
+  // Initialise + unlock audio on the first user interaction anywhere
+  // (browsers block audio until a gesture). Runs once.
+  const unlockAudio=()=>{ Audio.init(); Audio.resume(); window.removeEventListener('pointerdown',unlockAudio); window.removeEventListener('touchstart',unlockAudio); };
+  window.addEventListener('pointerdown',unlockAudio,{once:true});
+  window.addEventListener('touchstart',unlockAudio,{once:true});
+
+  // Home
+  $('openCameraBtn').addEventListener('click',()=>{ Audio.tap(); openCamera(); });
+  $('uploadBtn').addEventListener('click',()=>{ Audio.tap(); $('fileInput').click(); });
+
+  // File input
+  $('fileInput').addEventListener('change',e=>{
+    const files=[...e.target.files];
+    if(!files.length) return;
+    if(files.length===1){
+      const r=new FileReader();
+      r.onload=()=>loadImageToEditor(r.result,null);
+      r.readAsDataURL(files[0]);
+    } else {
+      batchProcess(files);
+    }
+    e.target.value='';
+  });
+  $('cameraFileInput').addEventListener('change',e=>{
+    const f=e.target.files[0];
+    if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>loadImageToEditor(r.result,null);
+    r.readAsDataURL(f);
+    e.target.value='';
+  });
+
+  // Camera controls
+  $('camCloseBtn').addEventListener('click',()=>{ stopCamera(); showView('home'); });
+  $('shutterBtn').addEventListener('click',captureFromCamera);
+  $('camFlipBtn').addEventListener('click',async()=>{
+    State.facingMode=State.facingMode==='environment'?'user':'environment';
+    await openCamera();
+  });
+
+  // Editor
+  $('undoBtn').addEventListener('click',undo);
+  $('autoDetectBtn').addEventListener('click',()=>{
+    pushHistory('auto-detect');
+    const quad=detectOnFull(State.currentImage);
+    if(quad){ State.corners=quad.map(p=>naturalToDisplay(p)); drawCorners(); toast(t('t_detected'),'ok'); }
+    else { toast(t('t_no_detect'),'err'); }
+  });
+  $('resetCornersBtn').addEventListener('click',()=>{ pushHistory('full'); setFullCorners(); drawCorners(); });
+  $('rotateEditBtn').addEventListener('click',()=>{
+    pushHistory('rotate');
+    State.editorRotation=(State.editorRotation+90)%360;
+    drawEditor();
+    // after rotating, run a fresh auto-detect on the rotated orientation
+    const quad=detectOnFull(State.currentImage, State.editorRotation);
+    if(quad){ State.corners=quad.map(p=>naturalToDisplay(p)); }
+    else { setFullCorners(); }
+    drawCorners();
+  });
+  $('editorBackBtn').addEventListener('click',()=>{ showView('home'); });
+  $('editorConfirmBtn').addEventListener('click',()=>{
+    try{
+      warpToDocument();
+      showView('process');
+      State.activeMode='bw';
+      buildModeCards();
+      runScanFx();
+      processImage();
+    }catch(e){ console.error(e); toast(t('t_process_fail'),'err'); }
+  });
+
+  // Process
+  $('processBackBtn').addEventListener('click',()=>showView('editor'));
+  $('brightSlider').addEventListener('input',e=>{
+    State.adjust.brightness=parseInt(e.target.value);
+    $('brightVal').textContent=e.target.value;
+  });
+  $('brightSlider').addEventListener('change',processImage);
+  $('contrastSlider').addEventListener('input',e=>{
+    State.adjust.contrast=parseInt(e.target.value);
+    $('contrastVal').textContent=e.target.value;
+  });
+  $('contrastSlider').addEventListener('change',processImage);
+  $('savePageBtn').addEventListener('click',savePage);
+  $('ocrBtn').addEventListener('click',()=>{ Audio.tap(); runOCR(); });
+
+  // Pages drawer
+  $('pagesBtn').addEventListener('click',openDrawer);
+  $('drawerCloseBtn').addEventListener('click',closeDrawer);
+  $('drawerBackdrop').addEventListener('click',closeDrawer);
+  $('addMoreBtn').addEventListener('click',()=>{ closeDrawer(); showView('home'); });
+  $('exportPdfBtn').addEventListener('click',exportPDF);
+  $('exportImgBtn').addEventListener('click',exportImages);
+
+  // OCR sheet
+  $('ocrCloseBtn').addEventListener('click',()=>closeSheet('ocr'));
+  $('ocrBackdrop').addEventListener('click',()=>closeSheet('ocr'));
+  $('ocrCopyBtn').addEventListener('click',()=>{
+    const ta=$('ocrTextArea');
+    ta.select();
+    navigator.clipboard.writeText(ta.value).then(()=>toast(t('t_copied'),'ok')).catch(()=>{document.execCommand('copy');toast(t('t_copied'),'ok');});
+  });
+  $('ocrRerunBtn').addEventListener('click',runOCR);
+  document.querySelectorAll('#ocrLangRow .lang-pill').forEach(p=>{
+    p.addEventListener('click',()=>{
+      document.querySelectorAll('#ocrLangRow .lang-pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+      State.ocrLang=p.dataset.lang;
+    });
+  });
+  document.querySelectorAll('#ocrLayoutRow .lang-pill').forEach(p=>{
+    p.addEventListener('click',()=>{
+      document.querySelectorAll('#ocrLayoutRow .lang-pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+      State.ocrPSM=p.dataset.psm;
+    });
+  });
+
+  // Settings
+  $('settingsBtn').addEventListener('click',()=>openSheet('settings'));
+  $('settingsCloseBtn').addEventListener('click',()=>closeSheet('settings'));
+  $('settingsBackdrop').addEventListener('click',()=>closeSheet('settings'));
+  $('soundToggle').addEventListener('click',function(){this.classList.toggle('on');State.settings.sound=this.classList.contains('on');Audio.enabled=State.settings.sound;if(State.settings.sound){Audio.init();Audio.resume();Audio.tap();}saveSettings();});
+  $('shadowToggle').addEventListener('click',function(){this.classList.toggle('on');State.settings.shadowRemoval=this.classList.contains('on');saveSettings();});
+  $('autoRotateToggle').addEventListener('click',function(){this.classList.toggle('on');State.settings.autoRotate=this.classList.contains('on');saveSettings();});
+  $('sessionToggle').addEventListener('click',function(){this.classList.toggle('on');State.settings.session=this.classList.contains('on');saveSettings();if(!State.settings.session){idbSet('pages',[]).catch(()=>{});}});
+  document.querySelectorAll('#qualitySeg button').forEach(b=>b.addEventListener('click',function(){
+    document.querySelectorAll('#qualitySeg button').forEach(x=>x.classList.remove('active'));
+    this.classList.add('active');State.settings.quality=parseFloat(this.dataset.q);saveSettings();
+  }));
+  document.querySelectorAll('#paperSeg button').forEach(b=>b.addEventListener('click',function(){
+    document.querySelectorAll('#paperSeg button').forEach(x=>x.classList.remove('active'));
+    this.classList.add('active');State.settings.paper=this.dataset.p;saveSettings();
+  }));
+  $('clearAllBtn').addEventListener('click',()=>{
+    if(State.pages.length===0){toast(t('t_no_pages'));return;}
+    State.pages=[];persistSession();updatePageCount();closeSheet('settings');toast(t('t_cleared'),'ok');
+  });
+
+  // resize handling for editor
+  window.addEventListener('resize',()=>{
+    if(views.editor.classList.contains('active') && State.currentImage){
+      const natCorners=State.corners?State.corners.map(p=>displayToNatural(p)):null;
+      drawEditor();
+      if(natCorners) State.corners=natCorners.map(p=>naturalToDisplay(p));
+      drawCorners();
+    }
+  });
+
+  $('langBtn').addEventListener('click',()=>{
+    Audio.tap();
+    applyLang(LANG==='ar'?'en':'ar');
+  });
+
+  setupCornerDrag();
+}
+
+/* ---------- Batch processing ---------- */
+async function batchProcess(files){
+  toast(t('t_batch',{n:files.length}));
+  for(const f of files){
+    await new Promise(resolve=>{
+      const r=new FileReader();
+      r.onload=async()=>{
+        const img=await loadImg(r.result);
+        // auto detect + warp + bw process
+        const quad=detectOnFull(img);
+        State.currentImage=img;
+        State.imgDims={w:img.naturalWidth,h:img.naturalHeight};
+        State.editorRotation=0;
+        State.editorScale=1;
+        // build corners in natural coords directly
+        let natCorners;
+        if(quad) natCorners=quad;
+        else natCorners=[{x:0,y:0},{x:img.naturalWidth,y:0},{x:img.naturalWidth,y:img.naturalHeight},{x:0,y:img.naturalHeight}];
+        // warp directly using natural corners
+        State.corners=natCorners.map(p=>({x:p.x*1,y:p.y*1}));
+        // temporarily set scale to 1 so displayToNatural is identity
+        const savedScale=State.editorScale; State.editorScale=1;
+        warpDirect(natCorners,img);
+        State.editorScale=savedScale;
+        State.activeMode='bw';
+        State.adjust={brightness:0,contrast:0};
+        processImageToPage();
+        resolve();
+      };
+      r.readAsDataURL(f);
+    });
+  }
+  updatePageCount();
+  toast(t('t_batch_done',{n:files.length}),'ok');
+  showView('home');
+  openDrawer();
+}
+
+function warpDirect(natCorners,img){
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const [tl,tr,br,bl]=natCorners;
+  let outW=Math.round(Math.max(dist(tl,tr),dist(bl,br)));
+  let outH=Math.round(Math.max(dist(tl,bl),dist(tr,br)));
+  outW=Math.max(80,outW);outH=Math.max(80,outH);
+  const srcCanvas=document.createElement('canvas');
+  srcCanvas.width=img.naturalWidth;srcCanvas.height=img.naturalHeight;
+  srcCanvas.getContext('2d').drawImage(img,0,0);
+  let src=cv.imread(srcCanvas),dst=new cv.Mat();
+  const srcTri=cv.matFromArray(4,1,cv.CV_32FC2,[tl.x,tl.y,tr.x,tr.y,br.x,br.y,bl.x,bl.y]);
+  const dstTri=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,outW,0,outW,outH,0,outH]);
+  const M=cv.getPerspectiveTransform(srcTri,dstTri);
+  cv.warpPerspective(src,dst,M,new cv.Size(outW,outH),cv.INTER_LINEAR,cv.BORDER_REPLICATE);
+  const out=document.createElement('canvas');out.width=outW;out.height=outH;
+  cv.imshow(out,dst);
+  src.delete();dst.delete();srcTri.delete();dstTri.delete();M.delete();
+  State.warpedCanvas=out;
+}
+
+function processImageToPage(){
+  // process current warped canvas with current mode into a page (used by batch)
+  const tmpCanvas=document.createElement('canvas');
+  let src=cv.imread(State.warpedCanvas);
+  let work=new cv.Mat();cv.cvtColor(src,work,cv.COLOR_RGBA2RGB);
+  let out=new cv.Mat();
+  let gray=new cv.Mat();cv.cvtColor(work,gray,cv.COLOR_RGB2GRAY);
+  if(State.settings.shadowRemoval){let flat=applyShadowRemoval(gray);gray.delete();gray=flat;}
+  let bw=new cv.Mat();
+  cv.adaptiveThreshold(gray,bw,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,15,10);
+  cv.cvtColor(bw,out,cv.COLOR_GRAY2RGBA);
+  tmpCanvas.width=State.warpedCanvas.width;tmpCanvas.height=State.warpedCanvas.height;
+  cv.imshow(tmpCanvas,out);
+  src.delete();work.delete();out.delete();gray.delete();bw.delete();
+
+  const dataUrl=tmpCanvas.toDataURL('image/jpeg',0.92);
+  const tc=document.createElement('canvas');
+  const ts=Math.min(1,200/Math.max(tmpCanvas.width,tmpCanvas.height));
+  tc.width=Math.round(tmpCanvas.width*ts);tc.height=Math.round(tmpCanvas.height*ts);
+  tc.getContext('2d').drawImage(tmpCanvas,0,0,tc.width,tc.height);
+  State.pages.push({
+    id:'p'+Date.now()+Math.random().toString(36).slice(2,6),
+    dataUrl,thumb:tc.toDataURL('image/jpeg',0.7),
+    mode:'bw',name:'صفحة '+(State.pages.length+1),ts:Date.now()
+  });
+  persistSession();
+}
+
+/* ============================================
+   INIT
+   ============================================ */
+window.__APP_INIT__=function(){
+  loadSettings();
+  bindEvents();
+  // apply saved language (default Arabic), or follow browser if first visit
+  let savedLang='ar';
+  try{
+    savedLang=localStorage.getItem('scanbay_lang') || (navigator.language||'ar').slice(0,2);
+  }catch(e){}
+  applyLang(savedLang==='en'?'en':'ar');
+  restoreSession();
+};
+
+})();
+</script>
+
+<!-- ============================================
+     PWA: Service Worker registration + install prompt
+     ============================================ -->
+<script>
+(function(){
+  'use strict';
+
+  // Register the service worker (enables offline use after first online load).
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('sw.js').then((reg)=>{
+        // When a new version is found, activate it on next load.
+        reg.addEventListener('updatefound',()=>{
+          const sw=reg.installing;
+          if(!sw) return;
+          sw.addEventListener('statechange',()=>{
+            if(sw.state==='installed' && navigator.serviceWorker.controller){
+              // a new version is ready; it will take over on next visit
+            }
+          });
+        });
+      }).catch((e)=>console.warn('SW registration failed:',e));
+    });
+  }
+
+  // Custom "install app" affordance for Android/Chrome.
+  let deferredPrompt=null;
+  const installBtn=document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt',(e)=>{
+    e.preventDefault();
+    deferredPrompt=e;
+    if(installBtn) installBtn.classList.remove('hidden');
+  });
+
+  if(installBtn){
+    installBtn.addEventListener('click',async()=>{
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome }=await deferredPrompt.userChoice;
+      deferredPrompt=null;
+      installBtn.classList.add('hidden');
+    });
+  }
+
+  window.addEventListener('appinstalled',()=>{
+    deferredPrompt=null;
+    if(installBtn) installBtn.classList.add('hidden');
+  });
+})();
+</script>
+</body>
+</html>
