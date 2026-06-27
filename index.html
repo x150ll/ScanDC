@@ -2625,18 +2625,52 @@ window.__APP_INIT__=function(){
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
       navigator.serviceWorker.register('sw.js').then((reg)=>{
-        // When a new version is found, activate it on next load.
+        // Periodically ask the browser to check for a new service worker
+        // (so installed apps notice updates without a manual hard-refresh).
+        setInterval(()=>{ reg.update().catch(()=>{}); }, 60*60*1000); // hourly
+
+        // When a new version is found, show an unobtrusive "update" prompt.
         reg.addEventListener('updatefound',()=>{
           const sw=reg.installing;
           if(!sw) return;
           sw.addEventListener('statechange',()=>{
             if(sw.state==='installed' && navigator.serviceWorker.controller){
-              // a new version is ready; it will take over on next visit
+              // A new version is ready and waiting. Offer to apply it.
+              showUpdatePrompt(sw);
             }
           });
         });
       }).catch((e)=>console.warn('SW registration failed:',e));
+
+      // Reload once the new worker takes control, so the fresh version shows.
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(refreshing) return;
+        refreshing=true;
+        window.location.reload();
+      });
     });
+  }
+
+  // Small toast-style banner telling the user an update is available.
+  function showUpdatePrompt(worker){
+    if(document.getElementById('updateBanner')) return;
+    const isAr=(document.documentElement.lang!=='en');
+    const banner=document.createElement('div');
+    banner.id='updateBanner';
+    banner.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom));z-index:400;background:#1A222B;border:1px solid #00B57E;border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.5);max-width:90vw;font-family:Tajawal,sans-serif';
+    banner.innerHTML=
+      '<span style="color:#E8EDF1;font-size:14px;font-weight:500">'+
+      (isAr?'يتوفّر تحديث جديد':'A new version is available')+'</span>'+
+      '<button id="updateApplyBtn" style="background:#00E5A0;color:#04130D;border:none;border-radius:9px;padding:8px 16px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer">'+
+      (isAr?'تحديث':'Update')+'</button>';
+    document.body.appendChild(banner);
+    document.getElementById('updateApplyBtn').addEventListener('click',()=>{
+      worker.postMessage('SKIP_WAITING');
+      banner.remove();
+    });
+    // auto-dismiss after 12s if ignored (it'll still apply on next launch)
+    setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 12000);
   }
 
   // Custom "install app" affordance for Android/Chrome.

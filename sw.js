@@ -9,7 +9,7 @@
      fresh deploy is picked up when online but the app still loads offline.
 */
 
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const SHELL_CACHE = 'scanbay-shell-' + VERSION;
 const RUNTIME_CACHE = 'scanbay-runtime-' + VERSION;
 
