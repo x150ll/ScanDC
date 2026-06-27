@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="icons/icon-192.png" width="120" height="120" alt="شعار الماسح" />
+<img src="icon-512.png" width="120" height="120" alt="شعار الماسح" />
 
 # الماسح · Scan
 
@@ -10,7 +10,7 @@
 
 <br/>
 
-<a href="https://scandc.pages.dev">
+<a href="https://scan4dc.pages.dev">
   <img src="https://img.shields.io/badge/%E2%86%92%20%20%D8%AC%D8%B1%D9%91%D8%A8%20%D8%A7%D9%84%D9%85%D8%A7%D8%B3%D8%AD%20%D8%A7%D9%84%D8%A2%D9%86-00E5A0?style=for-the-badge&labelColor=00E5A0" alt="جرّب الماسح الآن" height="46" />
 </a>
 
@@ -219,7 +219,7 @@
 
 ### جاهز لتجربة مستندات أنظف؟
 
-<a href="https://scandc.pages.dev">
+<a href="https://scan4dc.pages.dev">
   <img src="https://img.shields.io/badge/%D8%A7%D9%81%D8%AA%D8%AD%20%D8%A7%D9%84%D9%85%D8%A7%D8%B3%D8%AD%20%E2%86%92-00E5A0?style=for-the-badge&labelColor=00E5A0" alt="افتح الماسح" height="46" />
 </a>
 
