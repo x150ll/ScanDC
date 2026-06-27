@@ -208,6 +208,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .btn-secondary:hover,.btn-secondary:active{background:var(--surface-2);border-color:#475360}
 
 .home-foot{margin-top:30px;display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.quality-tip{margin-top:14px;display:flex;align-items:center;gap:8px;justify-content:center;font-size:12.5px;color:var(--text-3);line-height:1.5;max-width:320px;text-align:center}
+.quality-tip svg{width:15px;height:15px;flex-shrink:0;color:var(--amber)}
 .chip{
   font-size:12px;color:var(--text-3);background:var(--surface);
   border:1px solid var(--border);border-radius:20px;padding:6px 12px;
@@ -603,6 +605,10 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
             <span data-i18n="btn_upload">رفع صورة من الجهاز</span>
           </button>
         </div>
+        <p class="quality-tip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span data-i18n="quality_tip">لأعلى جودة: صوّر بكاميرا جهازك ثم ارفع الصورة</span>
+        </p>
         <div class="home-foot">
           <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_edges">كشف تلقائي للحواف</span></div>
           <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span data-i18n="chip_shadow">إزالة الظلال</span></div>
@@ -943,6 +949,7 @@ const I18N = {
     app_tagline_1:'حوّل أي ورقة إلى', app_tagline_2:'مستند نظيف',
     app_lead:'صوّر المستند، وسنكتشف حوافه، نصحّح المنظور، نزيل الظلال، ونخرجه واضحاً وقوياً — جاهزاً للحفظ أو المشاركة.',
     btn_camera:'التقاط بالكاميرا', btn_upload:'رفع صورة من الجهاز',
+    quality_tip:'لأعلى جودة: صوّر بكاميرا جهازك ثم ارفع الصورة',
     chip_edges:'كشف تلقائي للحواف', chip_shadow:'إزالة الظلال', chip_ocr:'استخراج النص', chip_pdf:'تصدير PDF',
     cam_hint:'وجّه الكاميرا نحو المستند', cam_found:'تم العثور على المستند',
     back:'رجوع', next:'متابعة', undo:'تراجع', auto_detect:'كشف تلقائي', full_image:'كامل الصورة', rotate:'تدوير',
@@ -981,6 +988,7 @@ const I18N = {
     app_tagline_1:'Turn any page into a', app_tagline_2:'clean document',
     app_lead:'Snap a document and we’ll find its edges, fix the perspective, remove shadows, and output it crisp and sharp — ready to save or share.',
     btn_camera:'Capture with camera', btn_upload:'Upload an image',
+    quality_tip:'For best quality: shoot with your phone\'s camera, then upload',
     chip_edges:'Auto edge detection', chip_shadow:'Shadow removal', chip_ocr:'Text extraction', chip_pdf:'PDF export',
     cam_hint:'Point the camera at a document', cam_found:'Document found',
     back:'Back', next:'Continue', undo:'Undo', auto_detect:'Auto detect', full_image:'Full image', rotate:'Rotate',
@@ -1197,13 +1205,24 @@ async function openCamera(){
   showView('camera');
   try{
     if(State.stream) stopCamera();
+    // Request the highest resolution the sensor will expose to the browser.
+    // We ask for 4K ideal (falls back gracefully to whatever the device allows),
+    // which gives noticeably sharper scans than 1440p on capable phones.
     State.stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:State.facingMode, width:{ideal:2560}, height:{ideal:1440} },
+      video:{
+        facingMode:{ ideal:State.facingMode },
+        width:{ ideal:3840 },
+        height:{ ideal:2160 },
+        frameRate:{ ideal:30 }
+      },
       audio:false
     });
     const v = $('cameraFeed');
     v.srcObject = State.stream;
     await v.play();
+    // Log the resolution we actually got (helps verify capability)
+    const track=State.stream.getVideoTracks()[0];
+    if(track){ const s=track.getSettings(); State._camRes=(s.width&&s.height)?`${s.width}×${s.height}`:''; }
     startLiveDetect();
   }catch(e){
     console.error(e);
